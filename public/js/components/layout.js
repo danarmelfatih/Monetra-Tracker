@@ -4,6 +4,7 @@ import { signOut, getMyFamilies, setActiveFamily } from '../lib/auth.js'
 import { getSb } from '../lib/supabase.js'
 import { getBudgetOverview } from '../lib/budget.js'
 import { getNotifications, markNotificationRead, markNotificationsRead, deleteNotification } from '../lib/notifications.js'
+import { applyTheme, readTheme, toggleTheme } from '../lib/theme.js'
 import { formatRupiah } from '../lib/format.js'
 
 const NAV = [
@@ -45,6 +46,7 @@ const greetingFor = (name) => {
 }
 
 export async function renderLayout({ user, familyName, activePath, familyId, greeting = false }) {
+  applyTheme(readTheme())
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/service-worker.js').catch(() => {})
   }
@@ -120,6 +122,24 @@ export async function renderLayout({ user, familyName, activePath, familyId, gre
   const setPanel = (panel, button, open) => {
     panel.hidden = !open
     button.setAttribute('aria-expanded', String(open))
+  }
+
+  let currentTheme = readTheme()
+  const themeButton = el('button', {
+    class: 'icon-button theme-toggle',
+    type: 'button',
+    'aria-label': currentTheme === 'dark' ? 'Gunakan mode terang' : 'Gunakan mode gelap',
+    'aria-pressed': String(currentTheme === 'dark'),
+    onclick: () => {
+      currentTheme = toggleTheme()
+      updateThemeButton(currentTheme)
+    }
+  }, icon(currentTheme === 'dark' ? 'sun' : 'moon'))
+
+  const updateThemeButton = (value) => {
+    themeButton.replaceChildren(icon(value === 'dark' ? 'sun' : 'moon'))
+    themeButton.setAttribute('aria-label', value === 'dark' ? 'Gunakan mode terang' : 'Gunakan mode gelap')
+    themeButton.setAttribute('aria-pressed', String(value === 'dark'))
   }
 
   const notificationList = el('div', { class: 'notification-list' },
@@ -371,6 +391,7 @@ export async function renderLayout({ user, familyName, activePath, familyId, gre
     headerTitle,
     switcher,
     el('div', { class: 'header-actions' },
+      themeButton,
       el('div', { class: 'notification-wrap' }, notificationButton, notificationPanel),
       el('div', { class: 'header-profile' }, profileButton, profilePanel))
   )

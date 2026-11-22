@@ -4,6 +4,15 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Anggota Keluarga - Monetra Tracker</title>
+  <script>
+    try {
+      var theme = localStorage.getItem('monetra-theme')
+      if (theme !== 'light' && theme !== 'dark') {
+        theme = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+      }
+      document.documentElement.dataset.theme = theme
+    } catch {}
+  </script>
   <link rel="stylesheet" href="/css/layout.css">
 </head>
 <body>

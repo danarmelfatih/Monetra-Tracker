@@ -40,6 +40,7 @@ test('/api/health dan /api/config merespons JSON', async () => {
 
 test('halaman utama aplikasi tersaji dengan konten yang diharapkan', async () => {
   const pages = [
+    ['/dashboard', 'Arus Keuangan'],
     ['/dashboard', 'Budget bulan ini'],
     ['/budgets', 'id="budget-form"'],
     ['/reports', 'id="report-type"'],
@@ -63,8 +64,9 @@ test('aset kritis dan manifest PWA tersaji', async () => {
     ['/js/pages/reports.js', 'report-type'],
     ['/js/components/layout.js', 'notification-panel'],
     ['/js/components/layout.js', 'stripNullText'],
+    ['/js/lib/icons.js', 'export function icon'],
     ['/js/categories.js', './lib/app.js'],
-    ['/service-worker.js', 'monetra-cache-v6'],
+    ['/service-worker.js', 'monetra-cache-v7'],
     ['/manifest.json', 'Monetra Tracker']
   ]
   for (const [path, marker] of assets) {

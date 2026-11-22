@@ -2,7 +2,7 @@ import { getSb } from './supabase.js'
 import { requireUser, getActiveFamilyId } from './auth.js'
 import { renderLayout } from '../components/layout.js'
 
-export async function initPage(activePath) {
+export async function initPage(activePath, options = {}) {
   const user = await requireUser()
   if (!user) return null
 
@@ -19,6 +19,6 @@ export async function initPage(activePath) {
     return null
   }
 
-  await renderLayout({ user, familyName: family.name, activePath, familyId })
+  await renderLayout({ user, familyName: family.name, activePath, familyId, greeting: options.greeting === true })
   return { user, familyId }
 }

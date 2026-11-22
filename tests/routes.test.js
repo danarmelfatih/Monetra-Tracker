@@ -50,9 +50,11 @@ test('halaman utama aplikasi tersaji dengan konten yang diharapkan', async () =>
     ['/transactions', 'tx-list-panel'],
     ['/wallets', 'id="wallet-form"'],
     ['/wallets', 'monetra-hide-amounts'],
+    ['/wallets', 'id="btn-hide-amounts"'],
     ['/savings', 'id="savings-list"'],
     ['/savings', 'monetra-hide-amounts'],
     ['/savings', 'id="savings-total" data-amount'],
+    ['/savings', 'id="btn-hide-amounts"'],
     ['/categories', 'id="cat-form"'],
     ['/login', 'Lanjutkan dengan Google']
   ]
@@ -69,7 +71,7 @@ test('aset kritis dan manifest PWA tersaji', async () => {
     ['/js/lib/notifications.js', 'getNotifications'],
     ['/js/lib/theme.js', 'toggleTheme'],
     ['/js/lib/privacy.js', 'toggleHideAmounts'],
-    ['/js/components/privacy-toggle.js', 'privacyToggleButton'],
+    ['/js/components/privacy-toggle.js', 'initPrivacyToggle'],
     ['/css/layout.css', "data-hide-amounts='true'"],
     ['/js/lib/report.js', 'buildReport'],
     ['/js/lib/wallet-summary.js', 'splitWalletBalances'],
@@ -81,7 +83,7 @@ test('aset kritis dan manifest PWA tersaji', async () => {
     ['/js/components/layout.js', 'stripNullText'],
     ['/js/lib/icons.js', 'export function icon'],
     ['/js/categories.js', './lib/app.js'],
-    ['/service-worker.js', 'monetra-cache-v14'],
+    ['/service-worker.js', 'monetra-cache-v15'],
     ['/manifest.json', 'Monetra Tracker']
   ]
   for (const [path, marker] of assets) {

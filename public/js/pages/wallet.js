@@ -2,7 +2,7 @@ import { getSb } from '../lib/supabase.js'
 import { initPage } from '../lib/app.js'
 import { el } from '../lib/dom.js'
 import { formatRupiah } from '../lib/format.js'
-import { privacyToggleButton } from '../components/privacy-toggle.js'
+import { initPrivacyToggle } from '../components/privacy-toggle.js'
 
 const ctx = await initPage('/wallets')
 
@@ -14,7 +14,7 @@ if (ctx) {
   }
 
   const $ = (id) => document.getElementById(id)
-  document.querySelector('.page-head .head-actions')?.prepend(privacyToggleButton())
+  initPrivacyToggle()
   const form = $('wallet-form')
   const transferForm = $('transfer-form')
   let editingId = null

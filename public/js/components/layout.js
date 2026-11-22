@@ -3,6 +3,7 @@ import { icon } from '../lib/icons.js'
 import { signOut, getMyFamilies, setActiveFamily } from '../lib/auth.js'
 import { getSb } from '../lib/supabase.js'
 import { getBudgetOverview } from '../lib/budget.js'
+import { getNotifications, markNotificationRead, markNotificationsRead, deleteNotification } from '../lib/notifications.js'
 import { formatRupiah } from '../lib/format.js'
 
 const NAV = [
@@ -122,7 +123,7 @@ export async function renderLayout({ user, familyName, activePath, familyId, gre
   }
 
   const notificationList = el('div', { class: 'notification-list' },
-    el('p', { class: 'notification-empty' }, 'Memuat notifikasi budget keluarga...'))
+    el('p', { class: 'notification-empty' }, 'Memuat notifikasi keluarga...'))
   const notificationPanel = el('div', {
     class: 'notification-panel', id: 'notification-panel', hidden: true
   },
@@ -155,7 +156,9 @@ export async function renderLayout({ user, familyName, activePath, familyId, gre
     }
   }, el('span', { class: 'avatar', 'aria-hidden': 'true' }, initial), el('span', {}, 'Profil'))
 
+  let sb = null
   const readKey = `notifications-read:${user.id}`
+  const seenKey = `notifications-seen:${user.id}`
   let notificationItems = []
 
   const readIds = () => {
@@ -167,16 +170,131 @@ export async function renderLayout({ user, familyName, activePath, familyId, gre
     }
   }
 
+  const seenStamps = () => {
+    try {
+      const stored = JSON.parse(localStorage.getItem(seenKey) || '{}')
+      return stored && typeof stored === 'object' && !Array.isArray(stored) ? stored : {}
+    } catch {
+      return {}
+    }
+  }
+
+  const saveSeenStamps = (stamps) => {
+    try {
+      localStorage.setItem(seenKey, JSON.stringify(stamps))
+    } catch {}
+  }
+
+  const isFreshStamp = (stamp) => {
+    const time = Date.parse(stamp)
+    return Number.isFinite(time) && Date.now() - time < 24 * 60 * 60 * 1000
+  }
+
+  const visibleItems = () => notificationItems.filter((item) => !readIds().includes(item.id))
+
+  const buildBudgetItems = (budgets) => {
+    const current = budgets
+      .filter((budget) => budget.status !== 'safe')
+      .map((budget) => ({
+        id: `budget-${budget.id}`,
+        source: 'budget',
+        title: budget.status === 'danger' ? 'Budget terlampaui' : 'Budget hampir habis',
+        body: `${cleanText(budget.name, 'Anggaran')}, ${formatRupiah(Number.isFinite(Number(budget.spent)) ? Number(budget.spent) : 0)} dari ${formatRupiah(Number.isFinite(Number(budget.limit)) ? Number(budget.limit) : 0)}`,
+        href: '/budgets'
+      }))
+    const stamps = seenStamps()
+    const now = new Date().toISOString()
+    const currentIds = new Set(current.map((item) => item.id))
+    let changed = false
+    for (const id of Object.keys(stamps)) {
+      if (!currentIds.has(id)) {
+        delete stamps[id]
+        changed = true
+      }
+    }
+    const read = readIds()
+    const nextRead = read.filter((id) => !id.startsWith('budget-') || currentIds.has(id))
+    if (nextRead.length !== read.length) {
+      try {
+        localStorage.setItem(readKey, JSON.stringify(nextRead))
+      } catch {}
+    }
+    const fresh = current.filter((item) => {
+      if (!stamps[item.id]) {
+        stamps[item.id] = now
+        changed = true
+        return true
+      }
+      return isFreshStamp(stamps[item.id])
+    })
+    if (changed) saveSeenStamps(stamps)
+    return fresh
+  }
+
+  const updateBadge = () => {
+    const unread = visibleItems().length
+    badge.textContent = String(unread)
+    badge.hidden = unread === 0
+  }
+
+  const markItemRead = async (item) => {
+    try {
+      localStorage.setItem(readKey, JSON.stringify([...new Set([...readIds(), item.id])]))
+    } catch {}
+    if (item.source === 'db' && sb) {
+      try {
+        await markNotificationRead(sb, item.dbId)
+      } catch {}
+    }
+  }
+
+  const dismissNotification = async (item) => {
+    if (item.source === 'db' && sb) {
+      try {
+        await deleteNotification(sb, item.dbId)
+      } catch {
+        return
+      }
+    }
+    notificationItems = notificationItems.filter((n) => n.id !== item.id)
+    renderNotifications()
+    updateBadge()
+  }
+
+  const openNotification = async (item) => {
+    await markItemRead(item)
+    notificationItems = notificationItems.filter((n) => n.id !== item.id)
+    renderNotifications()
+    updateBadge()
+    if (item.href) location.assign(item.href)
+  }
+
   const renderNotifications = () => {
-    const seen = readIds()
-    if (!notificationItems.length) {
-      notificationList.replaceChildren(el('p', { class: 'notification-empty' }, 'Belum ada notifikasi. Notifikasi muncul saat budget hampir habis atau terlampaui.'))
+    const items = visibleItems()
+    if (!items.length) {
+      notificationList.replaceChildren(el('p', { class: 'notification-empty' }, 'Belum ada notifikasi baru. Notifikasi hilang otomatis setelah 24 jam.'))
       return
     }
-    notificationList.replaceChildren(...notificationItems.map((item) =>
-      el('div', { class: `notification-item${seen.includes(item.id) ? ' read' : ''}` },
-        el('a', { href: item.href }, item.title),
-        el('span', { class: 'notification-body' }, item.body))))
+    notificationList.replaceChildren(...items.map((item) => {
+      const content = el('div', { class: 'notification-copy' },
+        item.href
+          ? el('a', {
+            href: item.href,
+            onclick: (event) => {
+              event.preventDefault()
+              openNotification(item)
+            }
+          }, item.title)
+          : el('strong', {}, item.title),
+        el('span', { class: 'notification-body' }, item.body))
+      return el('div', { class: 'notification-item' }, content,
+        el('button', {
+          class: 'notification-dismiss',
+          type: 'button',
+          'aria-label': `Hapus notifikasi ${item.title}`,
+          onclick: () => dismissNotification(item)
+        }, 'Hapus'))
+    }))
   }
 
   notificationButton.addEventListener('click', () => {
@@ -186,15 +304,18 @@ export async function renderLayout({ user, familyName, activePath, familyId, gre
       setPanel(profilePanel, profileButton, false)
       morePanel.hidden = true
       moreButton.setAttribute('aria-expanded', 'false')
-      const ids = notificationItems.map((item) => item.id)
-      if (ids.length) {
+      const items = visibleItems()
+      if (items.length) {
         try {
-          localStorage.setItem(readKey, JSON.stringify(ids))
-        } catch {
-          badge.hidden = true
-        }
+          localStorage.setItem(readKey, JSON.stringify([...new Set([...readIds(), ...items.map((item) => item.id)])]))
+        } catch {}
+        const dbIds = items.filter((item) => item.source === 'db').map((item) => item.dbId)
+        if (dbIds.length && sb) markNotificationsRead(sb, dbIds).catch(() => {})
+        const ids = new Set(items.map((item) => item.id))
+        notificationItems = notificationItems.filter((item) => !ids.has(item.id))
+        renderNotifications()
+        updateBadge()
       }
-      badge.hidden = true
     }
   })
 
@@ -256,20 +377,43 @@ export async function renderLayout({ user, familyName, activePath, familyId, gre
   stripNullText(header)
 
   try {
-    const sb = await getSb()
-    const overview = await getBudgetOverview(sb, familyId, user.id)
-    notificationItems = overview.budgets
-      .filter((budget) => budget.status !== 'safe')
-      .map((budget) => ({
-        id: `budget-${budget.id}`,
-        title: budget.status === 'danger' ? 'Budget terlampaui' : 'Budget hampir habis',
-        body: `${cleanText(budget.name, 'Anggaran')}, ${formatRupiah(Number.isFinite(Number(budget.spent)) ? Number(budget.spent) : 0)} dari ${formatRupiah(Number.isFinite(Number(budget.limit)) ? Number(budget.limit) : 0)}`,
-        href: '/budgets'
+    sb = await getSb()
+    const [budgetResult, storedResult] = await Promise.allSettled([
+      getBudgetOverview(sb, familyId, user.id),
+      getNotifications(sb, familyId, user.id)
+    ])
+
+    let budgetItems = []
+    let storedItems = []
+    let failed = 0
+
+    if (budgetResult.status === 'fulfilled') {
+      budgetItems = buildBudgetItems(budgetResult.value.budgets)
+    } else {
+      failed += 1
+    }
+
+    if (storedResult.status === 'fulfilled') {
+      storedItems = storedResult.value.map((item) => ({
+        id: `db-${item.id}`,
+        source: 'db',
+        dbId: item.id,
+        title: cleanText(item.title, 'Notifikasi'),
+        body: cleanText(item.body, ''),
+        href: item.href || null
       }))
-    const unread = notificationItems.filter((item) => !readIds().includes(item.id)).length
-    badge.textContent = String(unread)
-    badge.hidden = unread === 0
-    renderNotifications()
+    } else {
+      failed += 1
+    }
+
+    notificationItems = [...storedItems, ...budgetItems]
+    if (!notificationItems.length && failed === 2) {
+      badge.hidden = true
+      notificationList.replaceChildren(el('p', { class: 'notification-empty' }, 'Notifikasi tidak dapat dimuat. Muat ulang halaman.'))
+    } else {
+      updateBadge()
+      renderNotifications()
+    }
   } catch {
     badge.hidden = true
     notificationList.replaceChildren(el('p', { class: 'notification-empty' }, 'Notifikasi tidak dapat dimuat. Muat ulang halaman.'))

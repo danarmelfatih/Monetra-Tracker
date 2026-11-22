@@ -61,6 +61,7 @@ test('halaman utama aplikasi tersaji dengan konten yang diharapkan', async () =>
 test('aset kritis dan manifest PWA tersaji', async () => {
   const assets = [
     ['/js/lib/budget.js', 'getBudgetOverview'],
+    ['/js/lib/notifications.js', 'getNotifications'],
     ['/js/lib/report.js', 'buildReport'],
     ['/js/lib/wallet-summary.js', 'splitWalletBalances'],
     ['/js/pages/savings.js', 'savings-list'],
@@ -70,7 +71,7 @@ test('aset kritis dan manifest PWA tersaji', async () => {
     ['/js/components/layout.js', 'stripNullText'],
     ['/js/lib/icons.js', 'export function icon'],
     ['/js/categories.js', './lib/app.js'],
-    ['/service-worker.js', 'monetra-cache-v9'],
+    ['/service-worker.js', 'monetra-cache-v10'],
     ['/manifest.json', 'Monetra Tracker']
   ]
   for (const [path, marker] of assets) {

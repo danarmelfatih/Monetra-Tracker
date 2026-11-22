@@ -100,12 +100,19 @@ button, input, select { font: inherit; }
 }
 .notification-panel { right: 0; top: calc(100% + .5rem); width: min(320px, calc(100vw - 2rem)); padding: 0 .85rem .5rem; }
 .notification-head { padding: .75rem 0; border-bottom: 1px solid var(--border); }
-.notification-item { display: flex; flex-direction: column; gap: .2rem; padding: .65rem 0; border-bottom: 1px solid var(--border); }
+.notification-item { display: flex; align-items: flex-start; gap: .6rem; padding: .65rem 0; border-bottom: 1px solid var(--border); }
 .notification-item:last-child { border-bottom: 0; }
+.notification-copy { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: .2rem; }
 .notification-item a { color: var(--primary); font-weight: 700; }
 .notification-item.read a { color: var(--muted); font-weight: 500; }
 .notification-body, .notification-empty { color: var(--muted); font-size: .82rem; }
 .notification-empty { padding: .85rem 0 0; }
+.notification-dismiss {
+  flex: none; min-height: 36px; padding: .25rem .35rem; border: 1px solid var(--border);
+  border-radius: 8px; background: var(--surface); color: var(--muted);
+  font-size: .78rem; font-weight: 600; cursor: pointer;
+}
+.notification-dismiss:hover { color: var(--danger); border-color: var(--danger); }
 .profile-panel {
   right: 0; top: calc(100% + .5rem); min-width: 220px; padding: .85rem;
   display: flex; flex-direction: column; gap: .35rem;

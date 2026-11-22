@@ -75,7 +75,7 @@ test('aset kritis dan manifest PWA tersaji', async () => {
     ['/js/components/layout.js', 'stripNullText'],
     ['/js/lib/icons.js', 'export function icon'],
     ['/js/categories.js', './lib/app.js'],
-    ['/service-worker.js', 'monetra-cache-v11'],
+    ['/service-worker.js', 'monetra-cache-v12'],
     ['/manifest.json', 'Monetra Tracker']
   ]
   for (const [path, marker] of assets) {

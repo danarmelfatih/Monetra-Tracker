@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "bun --watch server/index.js",
     "start": "bun server/index.js",
+    "build:vercel": "mkdir -p public/vendor && cp node_modules/@supabase/supabase-js/dist/umd/supabase.js public/vendor/supabase.js",
     "test": "bun test",
     "typecheck": "bunx tsc --noEmit"
   },

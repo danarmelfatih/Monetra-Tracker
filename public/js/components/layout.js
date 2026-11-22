@@ -5,7 +5,6 @@ import { getSb } from '../lib/supabase.js'
 import { getBudgetOverview } from '../lib/budget.js'
 import { getNotifications, markNotificationRead, markNotificationsRead, deleteNotification } from '../lib/notifications.js'
 import { applyTheme, readTheme, toggleTheme } from '../lib/theme.js'
-import { applyHideAmounts, readHideAmounts, toggleHideAmounts } from '../lib/privacy.js'
 import { formatRupiah } from '../lib/format.js'
 
 const NAV = [
@@ -48,7 +47,6 @@ const greetingFor = (name) => {
 
 export async function renderLayout({ user, familyName, activePath, familyId, greeting = false }) {
   applyTheme(readTheme())
-  applyHideAmounts(readHideAmounts())
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/service-worker.js').catch(() => {})
   }
@@ -142,24 +140,6 @@ export async function renderLayout({ user, familyName, activePath, familyId, gre
     themeButton.replaceChildren(icon(value === 'dark' ? 'sun' : 'moon'))
     themeButton.setAttribute('aria-label', value === 'dark' ? 'Gunakan mode terang' : 'Gunakan mode gelap')
     themeButton.setAttribute('aria-pressed', String(value === 'dark'))
-  }
-
-  let hideAmounts = readHideAmounts()
-  const privacyButton = el('button', {
-    class: 'icon-button privacy-toggle',
-    type: 'button',
-    'aria-label': hideAmounts ? 'Tampilkan nominal' : 'Sembunyikan nominal',
-    'aria-pressed': String(hideAmounts),
-    onclick: () => {
-      hideAmounts = toggleHideAmounts()
-      updatePrivacyButton(hideAmounts)
-    }
-  }, icon(hideAmounts ? 'eyeOff' : 'eye'))
-
-  const updatePrivacyButton = (hidden) => {
-    privacyButton.replaceChildren(icon(hidden ? 'eyeOff' : 'eye'))
-    privacyButton.setAttribute('aria-label', hidden ? 'Tampilkan nominal' : 'Sembunyikan nominal')
-    privacyButton.setAttribute('aria-pressed', String(hidden))
   }
 
   const notificationList = el('div', { class: 'notification-list' },
@@ -411,7 +391,6 @@ export async function renderLayout({ user, familyName, activePath, familyId, gre
     headerTitle,
     switcher,
     el('div', { class: 'header-actions' },
-      privacyButton,
       themeButton,
       el('div', { class: 'notification-wrap' }, notificationButton, notificationPanel),
       el('div', { class: 'header-profile' }, profileButton, profilePanel))

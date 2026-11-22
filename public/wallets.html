@@ -11,6 +11,7 @@
         theme = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
       }
       document.documentElement.dataset.theme = theme
+      document.documentElement.dataset.hideAmounts = localStorage.getItem('monetra-hide-amounts') === 'true' ? 'true' : 'false'
     } catch {}
   </script>
   <link rel="stylesheet" href="/css/layout.css">

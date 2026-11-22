@@ -145,8 +145,11 @@ button, input, select { font: inherit; }
   width: 44px; height: 44px; padding: 0; border: 1px solid var(--border); border-radius: 10px;
   background: var(--surface); color: var(--text); cursor: pointer;
 }
-.theme-toggle, .privacy-toggle { border-color: var(--border-strong); color: var(--muted); }
-.theme-toggle:hover, .privacy-toggle:hover { color: var(--primary); background: var(--primary-light); }
+.theme-toggle { border-color: var(--border-strong); color: var(--muted); }
+.theme-toggle:hover { color: var(--primary); background: var(--primary-light); }
+.privacy-toggle { gap: .35rem; border-color: var(--border-strong); color: var(--muted); }
+.privacy-toggle:hover { color: var(--primary); background: var(--primary-light); }
+.privacy-toggle svg { width: 18px; height: 18px; }
 html[data-hide-amounts='true'] [data-amount] {
   position: relative; color: transparent !important; user-select: none;
 }

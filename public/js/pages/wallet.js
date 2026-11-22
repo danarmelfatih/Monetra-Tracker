@@ -2,6 +2,7 @@ import { getSb } from '../lib/supabase.js'
 import { initPage } from '../lib/app.js'
 import { el } from '../lib/dom.js'
 import { formatRupiah } from '../lib/format.js'
+import { privacyToggleButton } from '../components/privacy-toggle.js'
 
 const ctx = await initPage('/wallets')
 
@@ -13,6 +14,7 @@ if (ctx) {
   }
 
   const $ = (id) => document.getElementById(id)
+  document.querySelector('.page-head .head-actions')?.prepend(privacyToggleButton())
   const form = $('wallet-form')
   const transferForm = $('transfer-form')
   let editingId = null
@@ -52,7 +54,7 @@ if (ctx) {
     return el('article', { class: 'panel wallet-card' },
       el('div', { class: 'w-name' }, w.name),
       el('div', { class: 'w-type' }, TYPE_LABEL[w.type]),
-      el('div', { class: 'w-balance' }, formatRupiah(balances.get(w.id) ?? w.initial_balance)),
+      el('div', { class: 'w-balance', 'data-amount': true }, formatRupiah(balances.get(w.id) ?? w.initial_balance)),
       el('div', { class: 'row-actions' },
         el('button', { class: 'btn-link', onclick: () => openForm(w) }, 'Edit'),
         el('button', { class: 'btn-link', onclick: () => archive(w) }, 'Arsipkan')))
@@ -89,7 +91,7 @@ if (ctx) {
       const note = t.note ? ` · ${t.note}` : ''
       return el('div', { class: 'cat-row' },
         el('span', {}, `${t.transfer_date} · ${route}${note}`),
-        el('span', {}, formatRupiah(t.amount)))
+        el('span', { 'data-amount': true }, formatRupiah(t.amount)))
     }))
   }
 

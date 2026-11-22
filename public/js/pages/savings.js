@@ -3,6 +3,7 @@ import { initPage } from '../lib/app.js'
 import { el } from '../lib/dom.js'
 import { formatRupiah } from '../lib/format.js'
 import { splitWalletBalances } from '../lib/wallet-summary.js'
+import { privacyToggleButton } from '../components/privacy-toggle.js'
 
 const ctx = await initPage('/savings')
 
@@ -10,6 +11,7 @@ if (ctx) {
   const sb = await getSb()
   const { user, familyId } = ctx
   const $ = (id) => document.getElementById(id)
+  document.querySelector('.page-head .head-actions')?.prepend(privacyToggleButton())
   const form = $('savings-form')
   let editingId = null
 

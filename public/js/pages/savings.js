@@ -46,7 +46,7 @@ if (ctx) {
     return el('article', { class: 'panel wallet-card' },
       el('div', { class: 'w-name' }, wallet.name),
       el('div', { class: 'w-type' }, 'Tabungan'),
-      el('div', { class: 'w-balance' }, formatRupiah(balances.get(wallet.id) ?? wallet.initial_balance)),
+      el('div', { class: 'w-balance', 'data-amount': true }, formatRupiah(balances.get(wallet.id) ?? wallet.initial_balance)),
       el('div', { class: 'row-actions' },
         el('button', { class: 'btn-link', type: 'button', onclick: () => openForm(wallet) }, 'Edit'),
         el('button', { class: 'btn-link', type: 'button', onclick: () => archive(wallet) }, 'Arsipkan')))

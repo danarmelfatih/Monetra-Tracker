@@ -145,8 +145,15 @@ button, input, select { font: inherit; }
   width: 44px; height: 44px; padding: 0; border: 1px solid var(--border); border-radius: 10px;
   background: var(--surface); color: var(--text); cursor: pointer;
 }
-.theme-toggle { border-color: var(--border-strong); color: var(--muted); }
-.theme-toggle:hover { color: var(--primary); background: var(--primary-light); }
+.theme-toggle, .privacy-toggle { border-color: var(--border-strong); color: var(--muted); }
+.theme-toggle:hover, .privacy-toggle:hover { color: var(--primary); background: var(--primary-light); }
+html[data-hide-amounts='true'] [data-amount] {
+  position: relative; color: transparent !important; user-select: none;
+}
+html[data-hide-amounts='true'] [data-amount]::after {
+  content: '••••••'; position: absolute; inset: 0; display: flex; align-items: center;
+  color: var(--muted); font-weight: inherit; letter-spacing: .08em;
+}
 .notification-badge {
   position: absolute; top: -5px; right: -5px; min-width: 18px; height: 18px;
   padding: 0 4px; border-radius: 999px; background: var(--expense-text); color: var(--surface);

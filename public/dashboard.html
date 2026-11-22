@@ -11,6 +11,7 @@
         theme = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
       }
       document.documentElement.dataset.theme = theme
+      document.documentElement.dataset.hideAmounts = localStorage.getItem('monetra-hide-amounts') === 'true' ? 'true' : 'false'
     } catch {}
   </script>
   <link rel="stylesheet" href="/css/layout.css">
@@ -30,11 +31,11 @@
               <span class="card-icon" data-icon="wallet"></span>
               <span class="label">Total Saldo (Siap Pakai)</span>
             </div>
-            <div class="value" id="total">Memuat saldo...</div>
+            <div class="value" id="total" data-amount>Memuat saldo...</div>
             <div class="muted" id="balance-note"></div>
             <div class="balance-breakdown">
               <span>Tabungan <small id="savings-count"></small></span>
-              <strong id="savings-total">Memuat...</strong>
+              <strong id="savings-total" data-amount>Memuat...</strong>
             </div>
           </article>
           <article class="summary-card">
@@ -42,7 +43,7 @@
               <span class="card-icon income" data-icon="income"></span>
               <span class="label">Total Pemasukan</span>
             </div>
-            <div class="value income" id="income">Memuat...</div>
+            <div class="value income" id="income" data-amount>Memuat...</div>
             <div class="muted">Bulan ini</div>
           </article>
           <article class="summary-card">
@@ -50,7 +51,7 @@
               <span class="card-icon expense" data-icon="expense"></span>
               <span class="label">Total Pengeluaran</span>
             </div>
-            <div class="value expense" id="expense">Memuat...</div>
+            <div class="value expense" id="expense" data-amount>Memuat...</div>
             <div class="muted">Bulan ini</div>
           </article>
           <article class="summary-card">
@@ -58,9 +59,9 @@
               <span class="card-icon" data-icon="budget"></span>
               <span class="label">Sisa Anggaran</span>
             </div>
-            <div class="value" id="budget-remaining">Memuat...</div>
+            <div class="value" id="budget-remaining" data-amount>Memuat...</div>
             <div class="muted"><span id="budget-usage">Memuat...</span> terpakai</div>
-            <div class="card-meta">Batas <span id="budget-limit">-</span> · Terpakai <span id="budget-spent">-</span></div>
+            <div class="card-meta">Batas <span id="budget-limit" data-amount>-</span> · Terpakai <span id="budget-spent" data-amount>-</span></div>
           </article>
         </section>
 

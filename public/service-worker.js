@@ -1,4 +1,4 @@
-const CACHE_NAME = 'monetra-cache-v12'
+const CACHE_NAME = 'monetra-cache-v13'
 const essentialUrls = [
   '/',
   '/login',
@@ -34,6 +34,7 @@ const essentialUrls = [
   '/js/lib/budget.js',
   '/js/lib/notifications.js',
   '/js/lib/theme.js',
+  '/js/lib/privacy.js',
   '/js/lib/report.js',
   '/js/lib/wallet-summary.js',
   '/manifest.json'

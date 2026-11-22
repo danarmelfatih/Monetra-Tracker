@@ -43,6 +43,8 @@ test('halaman utama aplikasi tersaji dengan konten yang diharapkan', async () =>
     ['/dashboard', 'Arus Keuangan'],
     ['/dashboard', 'Total Saldo (Siap Pakai)'],
     ['/dashboard', 'monetra-theme'],
+    ['/dashboard', 'monetra-hide-amounts'],
+    ['/dashboard', 'id="total" data-amount'],
     ['/dashboard', 'Budget bulan ini'],
     ['/budgets', 'id="budget-form"'],
     ['/reports', 'id="report-type"'],
@@ -50,6 +52,8 @@ test('halaman utama aplikasi tersaji dengan konten yang diharapkan', async () =>
     ['/transactions', 'tx-list-panel'],
     ['/wallets', 'id="wallet-form"'],
     ['/savings', 'id="savings-list"'],
+    ['/savings', 'monetra-hide-amounts'],
+    ['/savings', 'id="savings-total" data-amount'],
     ['/categories', 'id="cat-form"'],
     ['/login', 'Lanjutkan dengan Google']
   ]
@@ -65,6 +69,8 @@ test('aset kritis dan manifest PWA tersaji', async () => {
     ['/js/lib/budget.js', 'getBudgetOverview'],
     ['/js/lib/notifications.js', 'getNotifications'],
     ['/js/lib/theme.js', 'toggleTheme'],
+    ['/js/lib/privacy.js', 'toggleHideAmounts'],
+    ['/css/layout.css', "data-hide-amounts='true'"],
     ['/js/lib/report.js', 'buildReport'],
     ['/js/lib/wallet-summary.js', 'splitWalletBalances'],
     ['/js/pages/savings.js', 'savings-list'],
@@ -72,10 +78,11 @@ test('aset kritis dan manifest PWA tersaji', async () => {
     ['/js/pages/reports.js', 'report-type'],
     ['/js/components/layout.js', 'notification-panel'],
     ['/js/components/layout.js', 'theme-toggle'],
+    ['/js/components/layout.js', 'privacy-toggle'],
     ['/js/components/layout.js', 'stripNullText'],
     ['/js/lib/icons.js', 'export function icon'],
     ['/js/categories.js', './lib/app.js'],
-    ['/service-worker.js', 'monetra-cache-v12'],
+    ['/service-worker.js', 'monetra-cache-v13'],
     ['/manifest.json', 'Monetra Tracker']
   ]
   for (const [path, marker] of assets) {

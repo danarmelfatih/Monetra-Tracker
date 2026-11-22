@@ -44,6 +44,10 @@ const greetingFor = (name) => {
 }
 
 export async function renderLayout({ user, familyName, activePath, familyId, greeting = false }) {
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/service-worker.js').catch(() => {})
+  }
+
   const familyLabel = cleanText(familyName, 'Keluarga')
   const userName = cleanText(user.user_metadata?.full_name, cleanText(user.email, 'Anggota'))
   const userEmail = cleanText(user.email, '')

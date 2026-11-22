@@ -28,22 +28,29 @@ export async function signInWithGoogle() {
 
 export async function requireUser() {
   const sb = await getSb()
-  // getSession menunggu pertukaran kode login (PKCE) selesai bila ada ?code= di URL
-  const { data: { session } } = await sb.auth.getSession()
-  if (!session) {
-    const params = new URLSearchParams(location.search)
-    const hash = new URLSearchParams(location.hash.replace(/^#/, ''))
-    let detail =
-      params.get('error_description') ||
-      hash.get('error_description') ||
-      params.get('error')
-    if (!detail && params.get('code')) {
-      detail = 'Login belum berhasil diproses. Silakan coba lagi.'
-    }
-    location.replace(detail ? `/login?error=${encodeURIComponent(detail)}` : '/login')
-    return null
+  let session = null
+  try {
+    ({ data: { session } } = await sb.auth.getSession())
+  } catch {}
+  if (session) return session.user
+
+  let user = null
+  try {
+    ({ data: { user } } = await sb.auth.getUser())
+  } catch {}
+  if (user) return user
+
+  const params = new URLSearchParams(location.search)
+  const hash = new URLSearchParams(location.hash.replace(/^#/, ''))
+  let detail =
+    params.get('error_description') ||
+    hash.get('error_description') ||
+    params.get('error')
+  if (!detail && params.get('code')) {
+    detail = 'Login belum berhasil diproses. Silakan coba lagi.'
   }
-  return session.user
+  location.replace(detail ? `/login?error=${encodeURIComponent(detail)}` : '/login')
+  return null
 }
 
 export function getActiveFamilyId(userId) {

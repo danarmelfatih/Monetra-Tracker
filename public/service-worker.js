@@ -1,4 +1,4 @@
-const CACHE_NAME = 'monetra-cache-v8'
+const CACHE_NAME = 'monetra-cache-v9'
 const essentialUrls = [
   '/',
   '/login',

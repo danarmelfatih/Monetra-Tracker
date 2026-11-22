@@ -11,6 +11,7 @@
         theme = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
       }
       document.documentElement.dataset.theme = theme
+      document.documentElement.dataset.hideAmounts = localStorage.getItem('monetra-hide-amounts') === 'true' ? 'true' : 'false'
     } catch {}
   </script>
   <link rel="stylesheet" href="/css/layout.css">
@@ -30,11 +31,16 @@
               <span class="card-icon" data-icon="wallet"></span>
               <span class="label">Total Saldo (Siap Pakai)</span>
             </div>
-            <div class="value" id="total">Memuat saldo...</div>
+            <div class="balance-value-row">
+              <div class="value" id="total" data-amount>Memuat saldo...</div>
+              <button class="icon-button privacy-toggle balance-privacy-toggle" id="btn-hide-amounts" type="button" aria-label="Sembunyikan saldo" aria-pressed="false">
+                <span class="privacy-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-6 10-6 10 6 10 6-3.6 6-10 6-10-6-10-6Z"></path><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6"></path></svg></span>
+              </button>
+            </div>
             <div class="muted" id="balance-note"></div>
             <div class="balance-breakdown">
               <span>Tabungan <small id="savings-count"></small></span>
-              <strong id="savings-total">Memuat...</strong>
+              <strong id="savings-total" data-amount>Memuat...</strong>
             </div>
           </article>
           <article class="summary-card">

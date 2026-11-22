@@ -43,6 +43,10 @@ test('halaman utama aplikasi tersaji dengan konten yang diharapkan', async () =>
     ['/dashboard', 'Arus Keuangan'],
     ['/dashboard', 'Total Saldo (Siap Pakai)'],
     ['/dashboard', 'monetra-theme'],
+    ['/dashboard', 'monetra-hide-amounts'],
+    ['/dashboard', 'id="total" data-amount'],
+    ['/dashboard', 'id="savings-total" data-amount'],
+    ['/dashboard', 'id="btn-hide-amounts"'],
     ['/dashboard', 'Budget bulan ini'],
     ['/budgets', 'id="budget-form"'],
     ['/reports', 'id="report-type"'],
@@ -73,8 +77,10 @@ test('aset kritis dan manifest PWA tersaji', async () => {
     ['/js/lib/privacy.js', 'toggleHideAmounts'],
     ['/js/components/privacy-toggle.js', 'initPrivacyToggle'],
     ['/css/layout.css', "data-hide-amounts='true'"],
+    ['/css/layout.css', 'Rp •••••••'],
     ['/js/lib/report.js', 'buildReport'],
     ['/js/lib/wallet-summary.js', 'splitWalletBalances'],
+    ['/js/pages/dashboard.js', 'initPrivacyToggle'],
     ['/js/pages/savings.js', 'savings-list'],
     ['/js/pages/budgets.js', 'budget-form'],
     ['/js/pages/reports.js', 'report-type'],
@@ -83,7 +89,7 @@ test('aset kritis dan manifest PWA tersaji', async () => {
     ['/js/components/layout.js', 'stripNullText'],
     ['/js/lib/icons.js', 'export function icon'],
     ['/js/categories.js', './lib/app.js'],
-    ['/service-worker.js', 'monetra-cache-v15'],
+    ['/service-worker.js', 'monetra-cache-v16'],
     ['/manifest.json', 'Monetra Tracker']
   ]
   for (const [path, marker] of assets) {

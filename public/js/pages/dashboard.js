@@ -5,6 +5,7 @@ import { icon } from '../lib/icons.js'
 import { formatRupiah } from '../lib/format.js'
 import { getBudgetOverview } from '../lib/budget.js'
 import { splitWalletBalances } from '../lib/wallet-summary.js'
+import { initPrivacyToggle } from '../components/privacy-toggle.js'
 
 const SVG_NS = 'http://www.w3.org/2000/svg'
 const CHART_COLORS = ['#087F5B', '#16A36A', '#086B4D', '#9A621A', '#B93E43', '#5C6B65']
@@ -14,6 +15,7 @@ const ctx = await initPage('/dashboard', { greeting: true })
 if (ctx) {
   const sb = await getSb()
   const $ = (id) => document.getElementById(id)
+  initPrivacyToggle()
   const monthStart = new Date()
   monthStart.setDate(1)
   monthStart.setHours(0, 0, 0, 0)

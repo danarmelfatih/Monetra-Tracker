@@ -151,12 +151,21 @@ button, input, select { font: inherit; }
 .privacy-toggle:hover { color: var(--primary); background: var(--primary-light); }
 .privacy-icon { display: inline-flex; }
 .privacy-icon svg { width: 18px; height: 18px; }
+.balance-value-row { display: flex; align-items: center; gap: .35rem; }
+.balance-value-row .value { min-width: 0; }
+.balance-privacy-toggle { flex: 0 0 44px; border-color: transparent; background: transparent; color: inherit; }
+.balance-privacy-toggle:hover { color: inherit; background: var(--on-primary-soft); }
 html[data-hide-amounts='true'] [data-amount] {
   position: relative; color: transparent !important; user-select: none;
 }
 html[data-hide-amounts='true'] [data-amount]::after {
-  content: '••••••'; position: absolute; inset: 0; display: flex; align-items: center;
-  color: var(--muted); font-weight: inherit; letter-spacing: .08em;
+  content: 'Rp •••••••'; position: absolute; inset: 0; display: flex; align-items: center;
+  color: var(--mask-color, var(--muted)); font-weight: inherit; letter-spacing: .06em; white-space: nowrap;
+}
+html[data-hide-amounts='true'] .balance-card { --mask-color: var(--on-primary); }
+@media (min-width: 768px) {
+  html[data-hide-amounts='true'] .balance-card { --mask-color: var(--text); }
+  .balance-privacy-toggle:hover { color: var(--primary); background: var(--primary-light); }
 }
 .notification-badge {
   position: absolute; top: -5px; right: -5px; min-width: 18px; height: 18px;

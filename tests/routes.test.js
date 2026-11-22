@@ -47,6 +47,7 @@ test('halaman utama aplikasi tersaji dengan konten yang diharapkan', async () =>
     ['/budgets', 'id="budget-form"'],
     ['/reports', 'id="report-type"'],
     ['/transactions', 'id="tx-form"'],
+    ['/transactions', 'tx-list-panel'],
     ['/wallets', 'id="wallet-form"'],
     ['/savings', 'id="savings-list"'],
     ['/categories', 'id="cat-form"'],

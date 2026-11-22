@@ -354,6 +354,25 @@ input::placeholder { color: var(--muted); opacity: 1; }
 .tx-amount.expense { color: var(--expense-text); }
 .row-actions { display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; }
 .row-actions select { width: auto; margin: 0; padding: .35rem; font-size: .85rem; }
+.tx-list { display: block; }
+.tx-list-panel .error { min-height: 0; margin: 0 0 .5rem; }
+.tx-list-panel .error:empty { display: none; }
+.tx-list-panel > .muted { margin: .25rem 0 .5rem; }
+.tx-row {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center; gap: .75rem; padding: .85rem 0;
+}
+.tx-row:first-child { padding-top: .35rem; }
+.tx-row:last-child { padding-bottom: .35rem; }
+.tx-row .tx-main { grid-column: 1; }
+.tx-row .muted { overflow-wrap: anywhere; }
+.tx-row .tx-amount { grid-column: 2; text-align: right; }
+.tx-row .row-actions { grid-column: 3; gap: .35rem; flex-wrap: nowrap; }
+.tx-row .btn-link {
+  min-height: 44px; padding: .5rem .45rem; border-radius: 8px;
+  background: transparent;
+}
+.tx-row .btn-link:hover { background: var(--bg); }
 .summary-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
 .summary-item .label { color: var(--muted); font-size: .85rem; }
 .summary-item .value { font-size: 1.4rem; font-weight: 700; overflow-wrap: anywhere; }
@@ -408,6 +427,11 @@ input::placeholder { color: var(--muted); opacity: 1; }
   .balance-card .card-icon { background: var(--on-primary-soft); color: var(--on-primary); }
   .balance-breakdown { border-color: var(--on-primary-border); }
   .balance-breakdown span, .balance-breakdown small { color: var(--on-primary); }
+  .tx-list-panel { padding: .85rem; }
+  .tx-row { grid-template-columns: minmax(0, 1fr) auto; row-gap: .55rem; }
+  .tx-row .tx-main { grid-column: 1 / -1; grid-row: 1; }
+  .tx-row .tx-amount { grid-column: 1; grid-row: 2; text-align: left; }
+  .tx-row .row-actions { grid-column: 2; grid-row: 2; justify-content: flex-end; }
   .summary-card { padding: .85rem; }
   .summary-card .value { font-size: 1.25rem; }
   .card-meta { font-size: .68rem; }

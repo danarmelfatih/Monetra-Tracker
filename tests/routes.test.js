@@ -41,11 +41,13 @@ test('/api/health dan /api/config merespons JSON', async () => {
 test('halaman utama aplikasi tersaji dengan konten yang diharapkan', async () => {
   const pages = [
     ['/dashboard', 'Arus Keuangan'],
+    ['/dashboard', 'Total Saldo (Siap Pakai)'],
     ['/dashboard', 'Budget bulan ini'],
     ['/budgets', 'id="budget-form"'],
     ['/reports', 'id="report-type"'],
     ['/transactions', 'id="tx-form"'],
     ['/wallets', 'id="wallet-form"'],
+    ['/savings', 'id="savings-list"'],
     ['/categories', 'id="cat-form"'],
     ['/login', 'Lanjutkan dengan Google']
   ]
@@ -60,13 +62,15 @@ test('aset kritis dan manifest PWA tersaji', async () => {
   const assets = [
     ['/js/lib/budget.js', 'getBudgetOverview'],
     ['/js/lib/report.js', 'buildReport'],
+    ['/js/lib/wallet-summary.js', 'splitWalletBalances'],
+    ['/js/pages/savings.js', 'savings-list'],
     ['/js/pages/budgets.js', 'budget-form'],
     ['/js/pages/reports.js', 'report-type'],
     ['/js/components/layout.js', 'notification-panel'],
     ['/js/components/layout.js', 'stripNullText'],
     ['/js/lib/icons.js', 'export function icon'],
     ['/js/categories.js', './lib/app.js'],
-    ['/service-worker.js', 'monetra-cache-v7'],
+    ['/service-worker.js', 'monetra-cache-v8'],
     ['/manifest.json', 'Monetra Tracker']
   ]
   for (const [path, marker] of assets) {

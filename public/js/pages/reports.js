@@ -2,6 +2,7 @@ import { getSb } from '../lib/supabase.js'
 import { initPage } from '../lib/app.js'
 import { el } from '../lib/dom.js'
 import { formatRupiah } from '../lib/format.js'
+import { walletKindLabel } from '../lib/wallet-summary.js'
 import {
   REPORT_TYPES,
   rangeForPreset,
@@ -68,7 +69,7 @@ if (ctx) {
         .select('user_id, profiles(full_name, email)')
         .eq('family_id', familyId)
         .eq('status', 'active'),
-      sb.from('wallets').select('id, name').eq('family_id', familyId).order('name')
+      sb.from('wallets').select('id, name, type').eq('family_id', familyId).order('name')
     ])
     const err = categoryRes.error || memberRes.error || walletRes.error
     if (err) throw err
@@ -80,7 +81,8 @@ if (ctx) {
     fillSelect($('filter-category'), refs.categories, 'Semua kategori', 'id', (c) => c.name)
     fillSelect($('filter-member'), refs.members, 'Semua anggota', 'user_id',
       (m) => m.profiles?.full_name || m.profiles?.email || 'Anggota')
-    fillSelect($('filter-wallet'), refs.wallets, 'Semua dompet', 'id', (w) => w.name)
+    fillSelect($('filter-wallet'), refs.wallets, 'Semua dompet', 'id',
+      (w) => walletKindLabel(w.type) === 'Tabungan' ? `${w.name} (Tabungan)` : w.name)
   }
 
   function table(headers, rows, numericColumns = []) {
@@ -147,6 +149,7 @@ if (ctx) {
 
     if (currentType === 'saldo' || currentType === 'dompet') {
       const rows = current.byWallet.map((wallet) => [
+        wallet.kind,
         wallet.name,
         formatRupiah(wallet.balance),
         formatRupiah(wallet.income),
@@ -156,10 +159,10 @@ if (ctx) {
           : String(wallet.count)
       ])
       content.replaceChildren(table(
-        ['Dompet', 'Saldo saat ini', 'Pemasukan periode', 'Pengeluaran periode',
+        ['Jenis', 'Dompet', 'Saldo saat ini', 'Pemasukan periode', 'Pengeluaran periode',
           currentType === 'saldo' ? 'Selisih periode' : 'Jumlah transaksi'],
         rows,
-        [1, 2, 3, 4]
+        [2, 3, 4, 5]
       ))
       return
     }
@@ -217,7 +220,7 @@ if (ctx) {
 
       const [txRes, walletRes, balanceRes] = await Promise.all([
         query,
-        sb.from('wallets').select('id, name').eq('family_id', familyId).order('name'),
+        sb.from('wallets').select('id, name, type').eq('family_id', familyId).order('name'),
         sb.from('wallet_balances').select('wallet_id, balance').eq('family_id', familyId)
       ])
       const err = txRes.error || walletRes.error || balanceRes.error

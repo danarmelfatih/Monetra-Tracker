@@ -181,6 +181,7 @@ button, input, select { font: inherit; }
 }
 .grid { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
 .btn {
+  display: inline-flex; align-items: center; justify-content: center; text-decoration: none;
   min-height: 44px; padding: .6rem 1rem; border: 1px solid transparent; border-radius: 9px;
   cursor: pointer; background: var(--primary); color: #fff; font-weight: 600; font-size: .9rem;
 }
@@ -223,6 +224,14 @@ input::placeholder { color: var(--muted); opacity: 1; }
 .summary-card .value.expense { color: var(--expense); }
 .summary-card .muted { font-size: .78rem; margin-top: .35rem; overflow-wrap: anywhere; }
 .card-meta { margin-top: .55rem; color: var(--muted); font-size: .72rem; overflow-wrap: anywhere; }
+.balance-breakdown {
+  display: flex; justify-content: space-between; align-items: flex-start; gap: .5rem;
+  margin-top: .7rem; padding-top: .6rem; border-top: 1px solid var(--border);
+  font-size: .8rem;
+}
+.balance-breakdown span { color: var(--muted); }
+.balance-breakdown small { display: block; margin-top: .15rem; font-size: .68rem; opacity: .8; }
+.balance-breakdown strong { font-variant-numeric: tabular-nums; overflow-wrap: anywhere; text-align: right; }
 
 .analytics-grid, .dashboard-lower-grid {
   display: grid; grid-template-columns: minmax(0, 1.8fr) minmax(0, 1fr); gap: 1rem; margin-bottom: 1rem;
@@ -331,6 +340,8 @@ input::placeholder { color: var(--muted); opacity: 1; }
   }
   .balance-card .label, .balance-card .muted { color: #FFFFFF; }
   .balance-card .card-icon { background: rgba(255, 255, 255, .16); color: #fff; }
+  .balance-breakdown { border-color: rgba(255, 255, 255, .3); }
+  .balance-breakdown span, .balance-breakdown small { color: #FFFFFF; }
   .summary-card { padding: .85rem; }
   .summary-card .value { font-size: 1.25rem; }
   .card-meta { font-size: .68rem; }

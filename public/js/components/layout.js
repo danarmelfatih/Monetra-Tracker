@@ -12,11 +12,12 @@ const NAV = [
   { href: '/reports', label: 'Laporan', icon: 'report' },
   { href: '/wallets', label: 'Dompet', icon: 'wallet' },
   { href: '/categories', label: 'Kategori', icon: 'grid' },
-  { href: '/family/members', label: 'Anggota', icon: 'team' }
+  { href: '/family/members', label: 'Anggota', icon: 'team' },
+  { href: '/savings', label: 'Tabungan', icon: 'wallet' }
 ]
 
 const MORE_LINKS = [
-  NAV[2], NAV[5], NAV[3], NAV[6]
+  NAV[2], NAV[5], NAV[3], NAV[6], NAV[7]
 ]
 
 const cleanText = (value, fallback) => {

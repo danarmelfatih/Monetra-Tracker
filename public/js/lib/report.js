@@ -1,3 +1,5 @@
+import { walletKindLabel } from './wallet-summary.js'
+
 const pad = (value) => String(value).padStart(2, '0')
 
 const toDateString = (date) =>
@@ -128,6 +130,8 @@ export function buildReport({ transactions = [], wallets = [], balances = [], ca
   const walletMap = new Map(wallets.map((w) => [w.id, {
     id: w.id,
     name: w.name,
+    type: w.type ?? 'other',
+    kind: walletKindLabel(w.type),
     balance: balanceMap.get(w.id) ?? 0,
     income: 0,
     expense: 0,
@@ -140,7 +144,8 @@ export function buildReport({ transactions = [], wallets = [], balances = [], ca
     if (item.type === 'income') wallet.income += item.amount
     else wallet.expense += item.amount
   }
-  const byWallet = [...walletMap.values()].sort((a, b) => a.name.localeCompare(b.name))
+  const byWallet = [...walletMap.values()].sort((a, b) =>
+    a.kind.localeCompare(b.kind) || a.name.localeCompare(b.name))
 
   return {
     details,
@@ -164,8 +169,8 @@ export function exportData(type, report) {
   }
   if (type === 'saldo') {
     return {
-      headers: ['Dompet', 'Saldo saat ini', 'Pemasukan periode', 'Pengeluaran periode', 'Selisih periode'],
-      rows: report.byWallet.map((w) => [w.name, w.balance, w.income, w.expense, w.income - w.expense])
+      headers: ['Jenis', 'Dompet', 'Saldo saat ini', 'Pemasukan periode', 'Pengeluaran periode', 'Selisih periode'],
+      rows: report.byWallet.map((w) => [w.kind, w.name, w.balance, w.income, w.expense, w.income - w.expense])
     }
   }
   if (type === 'perbandingan') {
@@ -187,8 +192,8 @@ export function exportData(type, report) {
     }
   }
   return {
-    headers: ['Dompet', 'Saldo saat ini', 'Pemasukan periode', 'Pengeluaran periode', 'Jumlah transaksi'],
-    rows: report.byWallet.map((w) => [w.name, w.balance, w.income, w.expense, w.count])
+    headers: ['Jenis', 'Dompet', 'Saldo saat ini', 'Pemasukan periode', 'Pengeluaran periode', 'Jumlah transaksi'],
+    rows: report.byWallet.map((w) => [w.kind, w.name, w.balance, w.income, w.expense, w.count])
   }
 }
 

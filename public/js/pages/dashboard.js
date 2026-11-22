@@ -4,6 +4,7 @@ import { el } from '../lib/dom.js'
 import { icon } from '../lib/icons.js'
 import { formatRupiah } from '../lib/format.js'
 import { getBudgetOverview } from '../lib/budget.js'
+import { splitWalletBalances } from '../lib/wallet-summary.js'
 
 const SVG_NS = 'http://www.w3.org/2000/svg'
 const CHART_COLORS = ['#087F5B', '#16A36A', '#086B4D', '#9A621A', '#B93E43', '#5C6B65']
@@ -223,8 +224,9 @@ if (ctx) {
     $('recent-empty').hidden = true
     $('empty-action').hidden = true
 
-    const [balanceRes, monthRes, recentRes, budgetResult] = await Promise.all([
-      sb.from('wallet_balances').select('balance').eq('family_id', ctx.familyId),
+    const [balanceRes, walletRes, monthRes, recentRes, budgetResult] = await Promise.all([
+      sb.from('wallet_balances').select('wallet_id, balance').eq('family_id', ctx.familyId),
+      sb.from('wallets').select('id, type').eq('family_id', ctx.familyId),
       sb.from('transactions')
         .select('amount, type')
         .eq('family_id', ctx.familyId)
@@ -241,12 +243,14 @@ if (ctx) {
     ])
     renderBudget(budgetResult)
 
-    const err = balanceRes.error || monthRes.error || recentRes.error
+    const err = balanceRes.error || walletRes.error || monthRes.error || recentRes.error
     if (err) {
       $('total').textContent = '-'
       $('income').textContent = '-'
       $('expense').textContent = '-'
       $('balance-note').textContent = ''
+      $('savings-count').textContent = ''
+      $('savings-total').textContent = '-'
       $('flow-chart').replaceChildren(el('p', { class: 'muted' }, 'Grafik tidak dapat dimuat.'))
       $('loading').hidden = true
       $('recent-empty').textContent = 'Data transaksi tidak dapat dimuat.'
@@ -255,10 +259,12 @@ if (ctx) {
       return
     }
 
-    const balances = balanceRes.data ?? []
-    const total = balances.reduce((sum, r) => sum + Number(r.balance), 0)
-    $('total').textContent = money(total)
-    $('balance-note').textContent = `Dari ${balances.length} dompet.`
+    const wallets = walletRes.data ?? []
+    const summary = splitWalletBalances(wallets, balanceRes.data ?? [])
+    $('total').textContent = money(summary.saldoTotal)
+    $('balance-note').textContent = `Dari ${summary.saldoCount} dompet siap pakai.`
+    $('savings-count').textContent = `${summary.savingsCount} tabungan`
+    $('savings-total').textContent = money(summary.savingsTotal)
 
     let income = 0
     let expense = 0

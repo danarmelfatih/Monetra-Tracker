@@ -25,8 +25,16 @@ const transactions = [
   }
 ]
 
-const wallets = [{ id: 'w1', name: 'BCA' }, { id: 'w2', name: 'BNI' }]
-const balances = [{ wallet_id: 'w1', balance: 5000000 }, { wallet_id: 'w2', balance: 2000000 }]
+const wallets = [
+  { id: 'w1', name: 'BCA', type: 'bank' },
+  { id: 'w2', name: 'BNI', type: 'bank' },
+  { id: 'w3', name: 'Tabungan Rumah', type: 'savings' }
+]
+const balances = [
+  { wallet_id: 'w1', balance: 5000000 },
+  { wallet_id: 'w2', balance: 2000000 },
+  { wallet_id: 'w3', balance: 7500000 }
+]
 const categories = [{ id: 'c1', name: 'Makanan' }, { id: 'c2', name: 'Transportasi' }]
 const members = [
   { user_id: 'u1', profiles: { full_name: 'Andi' } },
@@ -53,7 +61,12 @@ test('buildReport mengagregasi pemasukan, pengeluaran, kategori, bulan, anggota,
   expect(report.byMonth[1].net).toBe(-100000)
   expect(report.byMember[0]).toEqual({ id: 'u1', name: 'Andi', income: 1000000, expense: 250000, count: 2 })
   expect(report.byWallet[0]).toEqual({
-    id: 'w1', name: 'BCA', balance: 5000000, income: 1000000, expense: 250000, count: 2
+    id: 'w1', name: 'BCA', type: 'bank', kind: 'Dompet',
+    balance: 5000000, income: 1000000, expense: 250000, count: 2
+  })
+  expect(report.byWallet[2]).toEqual({
+    id: 'w3', name: 'Tabungan Rumah', type: 'savings', kind: 'Tabungan',
+    balance: 7500000, income: 0, expense: 0, count: 0
   })
   expect(report.details[1].visibility).toBe('Pribadi')
 })
@@ -67,7 +80,10 @@ test('exportData mengikuti jenis laporan yang dipilih', () => {
 
   expect(pengeluaran.headers).toContain('Jumlah')
   expect(pengeluaran.rows).toHaveLength(2)
-  expect(saldo.rows[0]).toEqual(['BCA', 5000000, 1000000, 250000, 750000])
+  expect(saldo.headers).toContain('Jenis')
+  expect(saldo.rows).toHaveLength(3)
+  expect(saldo.rows[0]).toEqual(['Dompet', 'BCA', 5000000, 1000000, 250000, 750000])
+  expect(saldo.rows[2]).toEqual(['Tabungan', 'Tabungan Rumah', 7500000, 0, 0, 0])
   expect(kategori.rows[0]).toEqual(['Makanan', 250000, 1])
   expect(anggota.rows[0]).toEqual(['Andi', 2, 1000000, 250000])
 })

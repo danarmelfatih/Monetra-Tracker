@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Tabungan - Monetra Tracker</title>
+  <link rel="stylesheet" href="/css/layout.css">
+</head>
+<body>
+  <div id="shell">
+    <aside id="sidebar"></aside>
+    <div id="main">
+      <header id="header"></header>
+      <main id="content">
+        <div class="page-head">
+          <h1>Tabungan</h1>
+          <div class="head-actions">
+            <a class="btn btn-ghost" href="/wallets">Transfer</a>
+            <button class="btn" id="btn-add" type="button">+ Tabungan</button>
+          </div>
+        </div>
+
+        <p class="error" id="error" role="alert"></p>
+        <button class="btn btn-ghost dash-action" id="btn-retry" type="button" hidden>Coba lagi</button>
+
+        <form class="panel" id="savings-form" hidden>
+          <label>Nama tabungan
+            <input id="savings-name" required maxlength="100" placeholder="mis. Tabungan Rumah">
+          </label>
+          <label>Saldo awal (Rp)
+            <input id="savings-balance" type="number" step="1" value="0" required>
+          </label>
+          <p class="error" id="form-error"></p>
+          <button class="btn" type="submit">Simpan</button>
+          <button class="btn btn-ghost" type="button" id="btn-cancel">Batal</button>
+        </form>
+
+        <section class="panel" id="savings-summary">
+          <div class="summary-row">
+            <div class="summary-item">
+              <div class="label">Total Tabungan</div>
+              <div class="value" id="savings-total">Memuat...</div>
+              <div class="muted">Tidak ikut Total Saldo siap pakai</div>
+            </div>
+            <div class="summary-item">
+              <div class="label">Jumlah tabungan</div>
+              <div class="value" id="savings-count">Memuat...</div>
+              <div class="muted">Dompet bertipe tabungan</div>
+            </div>
+          </div>
+        </section>
+
+        <p class="muted">Gunakan Transfer di halaman Dompet untuk setor atau tarik dana.</p>
+
+        <p class="muted" id="savings-loading">Memuat daftar tabungan...</p>
+        <p class="muted" id="savings-empty" hidden>Belum ada tabungan. Klik "+ Tabungan" untuk membuat yang pertama.</p>
+        <div class="grid" id="savings-list"></div>
+      </main>
+    </div>
+  </div>
+  <nav id="bottomnav"></nav>
+  <script src="/vendor/supabase.js"></script>
+  <script type="module" src="/js/pages/savings.js"></script>
+</body>
+</html>

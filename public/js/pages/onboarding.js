@@ -1,5 +1,5 @@
 import { getSb } from '../lib/supabase.js'
-import { requireUser, getMyFamilies, withTimeout, setActiveFamily } from '../lib/auth.js'
+import { requireUser, getMyFamilies, withTimeout, setActiveFamily, signOut } from '../lib/auth.js'
 import { acceptInvitation } from '../lib/family.js'
 import { el } from '../lib/dom.js'
 
@@ -12,6 +12,8 @@ const nameInput = $('family-name')
 const inviteBox = $('invite-box')
 const btnAccept = $('btn-accept')
 const btnRetry = $('btn-retry')
+const btnSwitchAccount = $('btn-switch-account')
+const inviteAccount = $('invite-account')
 const familyListBox = $('family-list-box')
 const familyList = $('family-list')
 
@@ -27,6 +29,7 @@ function showError(message = '') {
 }
 
 btnRetry.addEventListener('click', () => location.reload())
+btnSwitchAccount.addEventListener('click', signOut)
 
 form.addEventListener('submit', async (e) => {
   e.preventDefault()
@@ -56,7 +59,10 @@ btnAccept.addEventListener('click', async () => {
     setActiveFamily(currentUser.id, familyId)
     location.replace('/dashboard')
   } catch (err) {
-    showError(err.message)
+    const message = err.message || 'Undangan gagal diterima.'
+    showError(/email lain/i.test(message)
+      ? `${message}. Keluar lalu masuk dengan email yang diundang, lalu buka kembali tautan undangannya.`
+      : message)
     btnAccept.disabled = false
   }
 })
@@ -74,6 +80,7 @@ try {
   } else if (inviteToken) {
     loading.hidden = true
     inviteBox.hidden = false
+    inviteAccount.textContent = `Sedang masuk sebagai ${currentUser.email || 'akun Anda'}. Undangan hanya bisa diterima oleh email yang diundang.`
   } else {
     const families = await withTimeout(
       getMyFamilies(currentUser.id),

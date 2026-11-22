@@ -106,12 +106,14 @@ if (ctx) {
     e.preventDefault()
     try {
       showError()
-      const token = await inviteMember(familyId, $('invite-email').value.trim(), $('invite-role').value)
+      const email = $('invite-email').value.trim()
+      const token = await inviteMember(familyId, email, $('invite-role').value)
       const link = `${location.origin}/onboarding?invite=${token}`
       const box = $('invite-link')
       box.hidden = false
       box.replaceChildren(
         el('p', { class: 'muted' }, 'Salin tautan ini kepada calon anggota (berlaku 7 hari):'),
+        el('p', { class: 'muted' }, `Tautan hanya bisa diterima oleh ${email}.`),
         el('input', { readonly: true, value: link }),
         el('button', { class: 'btn btn-ghost', onclick: () => navigator.clipboard.writeText(link) }, 'Salin'))
       $('invite-email').value = ''

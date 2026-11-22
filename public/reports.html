@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Laporan - Monetra Tracker</title>
+  <link rel="stylesheet" href="/css/layout.css">
+</head>
+<body>
+  <div id="shell">
+    <aside id="sidebar"></aside>
+    <div id="main">
+      <header id="header"></header>
+      <main id="content">
+        <div class="page-head">
+          <h1>Laporan</h1>
+          <div class="head-actions">
+            <button class="btn btn-ghost dash-action" id="btn-csv" disabled>CSV</button>
+            <button class="btn btn-ghost dash-action" id="btn-excel" disabled>Excel</button>
+            <button class="btn btn-ghost dash-action" id="btn-pdf" disabled>Simpan PDF</button>
+          </div>
+        </div>
+
+        <p class="error" id="error"></p>
+        <p class="muted" id="loading" hidden>Memuat laporan...</p>
+        <p class="muted" id="filter-note">Laporan mengikuti aturan visibilitas transaksi akun ini.</p>
+
+        <form class="panel" id="filter-form">
+          <div class="filter-grid">
+            <label>Jenis laporan
+              <select id="report-type"></select>
+            </label>
+            <label>Periode
+              <select id="report-preset">
+                <option value="harian">Harian</option>
+                <option value="mingguan">Mingguan</option>
+                <option value="bulanan" selected>Bulanan</option>
+                <option value="tahunan">Tahunan</option>
+                <option value="custom">Rentang tanggal</option>
+              </select>
+            </label>
+            <label>Mulai
+              <input id="date-start" type="date" required>
+            </label>
+            <label>Sampai
+              <input id="date-end" type="date" required>
+            </label>
+            <label>Kategori
+              <select id="filter-category"></select>
+            </label>
+            <label>Anggota
+              <select id="filter-member"></select>
+            </label>
+            <label>Dompet
+              <select id="filter-wallet"></select>
+            </label>
+          </div>
+          <div class="report-actions">
+            <button class="btn" type="submit">Tampilkan laporan</button>
+            <button class="btn btn-ghost" type="button" id="btn-reset">Reset filter</button>
+          </div>
+        </form>
+
+        <section class="panel" id="report-panel">
+          <div class="section-head">
+            <h2 id="report-title">Laporan</h2>
+            <span class="muted" id="report-range"></span>
+          </div>
+          <p class="muted" id="print-title"></p>
+          <div class="report-summary-grid" id="report-summary"></div>
+          <div class="report-content" id="report-content"></div>
+        </section>
+      </main>
+    </div>
+  </div>
+  <nav id="bottomnav"></nav>
+  <script src="/vendor/supabase.js"></script>
+  <script type="module" src="/js/pages/reports.js"></script>
+</body>
+</html>

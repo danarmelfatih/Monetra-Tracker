@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Transaksi - Monetra Tracker</title>
+  <link rel="stylesheet" href="/css/layout.css">
+</head>
+<body>
+  <div id="shell">
+    <aside id="sidebar"></aside>
+    <div id="main">
+      <header id="header"></header>
+      <main id="content">
+        <div class="page-head">
+          <h1>Transaksi</h1>
+          <button class="btn" id="btn-add">+ Transaksi</button>
+        </div>
+
+        <form class="panel" id="tx-form" hidden>
+          <label>Jenis
+            <select id="tx-type">
+              <option value="expense">Pengeluaran</option>
+              <option value="income">Pemasukan</option>
+            </select>
+          </label>
+          <label>Judul
+            <input id="tx-title" required maxlength="200" placeholder="mis. Belanja bulanan">
+          </label>
+          <label>Nominal (Rp)
+            <input id="tx-amount" type="number" step="1" min="1" required>
+          </label>
+          <label>Kategori
+            <select id="tx-category"></select>
+          </label>
+          <label>Dompet
+            <select id="tx-wallet" required></select>
+          </label>
+          <label>Tanggal
+            <input id="tx-date" type="date" required>
+          </label>
+          <label>Visibilitas
+            <select id="tx-visibility">
+              <option value="private">Private</option>
+              <option value="shared">Shared</option>
+            </select>
+          </label>
+          <label>Catatan
+            <input id="tx-note" maxlength="500">
+          </label>
+          <p class="error" id="form-error"></p>
+          <button class="btn" type="submit">Simpan</button>
+          <button class="btn btn-ghost" type="button" id="btn-cancel">Batal</button>
+        </form>
+
+        <form class="panel" id="filter-form">
+          <label>Cari
+            <input id="filter-search" placeholder="Judul atau catatan">
+          </label>
+          <div class="filter-grid">
+            <label>Jenis
+              <select id="filter-type">
+                <option value="">Semua</option>
+                <option value="income">Pemasukan</option>
+                <option value="expense">Pengeluaran</option>
+              </select>
+            </label>
+            <label>Dari tanggal
+              <input id="filter-from" type="date">
+            </label>
+            <label>Sampai tanggal
+              <input id="filter-to" type="date">
+            </label>
+            <label>Kategori
+              <select id="filter-category"></select>
+            </label>
+            <label>Dompet
+              <select id="filter-wallet"></select>
+            </label>
+            <label>Anggota
+              <select id="filter-member"></select>
+            </label>
+          </div>
+          <p></p>
+          <button class="btn" type="submit">Terapkan Filter</button>
+          <button class="btn btn-ghost" type="button" id="btn-reset-filter">Reset</button>
+        </form>
+
+        <p class="error" id="error"></p>
+        <p class="muted" id="empty" hidden>Belum ada transaksi.</p>
+        <div id="tx-list"></div>
+      </main>
+    </div>
+  </div>
+  <nav id="bottomnav"></nav>
+  <script src="/vendor/supabase.js"></script>
+  <script type="module" src="/js/pages/transactions.js"></script>
+</body>
+</html>

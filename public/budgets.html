@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Budget - Monetra Tracker</title>
+  <link rel="stylesheet" href="/css/layout.css">
+</head>
+<body>
+  <div id="shell">
+    <aside id="sidebar"></aside>
+    <div id="main">
+      <header id="header"></header>
+      <main id="content">
+        <div class="page-head">
+          <h1>Budget</h1>
+          <a class="btn btn-ghost dash-action" href="/dashboard">Kembali ke ringkasan</a>
+        </div>
+
+        <p class="error" id="error"></p>
+        <p class="muted" id="loading">Memuat budget...</p>
+        <p class="muted" id="status"></p>
+
+        <section class="panel">
+          <div class="budget-summary-grid">
+            <div class="summary-item">
+              <div class="label">Total batas</div>
+              <div class="value" id="budget-limit-total">Memuat...</div>
+            </div>
+            <div class="summary-item">
+              <div class="label">Terpakai bulan ini</div>
+              <div class="value expense" id="budget-spent-total">Memuat...</div>
+            </div>
+            <div class="summary-item">
+              <div class="label">Sisa</div>
+              <div class="value" id="budget-remaining-total">Memuat...</div>
+            </div>
+          </div>
+        </section>
+
+        <form class="panel" id="budget-form">
+          <div class="filter-grid">
+            <label>Kategori
+              <select id="budget-category"></select>
+            </label>
+            <label>Anggota
+              <select id="budget-member"></select>
+            </label>
+            <label>Batas bulanan (Rp)
+              <input id="budget-limit" type="number" min="1" step="1" required>
+            </label>
+            <label>Peringatan pada (%)
+              <input id="budget-alert" type="number" min="1" max="100" step="1" required>
+            </label>
+          </div>
+          <p class="muted" id="form-note"></p>
+          <button class="btn" type="submit">Simpan budget</button>
+        </form>
+
+        <section class="panel">
+          <div class="section-head">
+            <h2>Budget aktif</h2>
+          </div>
+          <div class="budget-list" id="budget-list"></div>
+        </section>
+      </main>
+    </div>
+  </div>
+  <nav id="bottomnav"></nav>
+  <script src="/vendor/supabase.js"></script>
+  <script type="module" src="/js/pages/budgets.js"></script>
+</body>
+</html>

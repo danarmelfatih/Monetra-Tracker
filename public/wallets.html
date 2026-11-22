@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Dompet - Monetra Tracker</title>
+  <link rel="stylesheet" href="/css/layout.css">
+</head>
+<body>
+  <div id="shell">
+    <aside id="sidebar"></aside>
+    <div id="main">
+      <header id="header"></header>
+      <main id="content">
+        <div class="page-head">
+          <h1>Dompet</h1>
+          <div class="head-actions">
+            <button class="btn btn-ghost" id="btn-transfer">Transfer</button>
+            <button class="btn" id="btn-add">+ Dompet</button>
+          </div>
+        </div>
+
+        <form class="panel" id="wallet-form" hidden>
+          <label>Nama dompet
+            <input id="w-name" required maxlength="100" placeholder="mis. Dompet Tunai">
+          </label>
+          <label>Jenis
+            <select id="w-type">
+              <option value="cash">Tunai</option>
+              <option value="bank">Bank</option>
+              <option value="ewallet">E-wallet</option>
+              <option value="savings">Tabungan</option>
+              <option value="other">Lainnya</option>
+            </select>
+          </label>
+          <label>Saldo awal (Rp)
+            <input id="w-balance" type="number" step="1" value="0" required>
+          </label>
+          <p></p>
+          <button class="btn" type="submit">Simpan</button>
+          <button class="btn btn-ghost" type="button" id="btn-cancel">Batal</button>
+        </form>
+
+        <form class="panel" id="transfer-form" hidden>
+          <h2>Transfer Antar Dompet</h2>
+          <label>Dari
+            <select id="t-from" required></select>
+          </label>
+          <label>Ke
+            <select id="t-to" required></select>
+          </label>
+          <label>Nominal (Rp)
+            <input id="t-amount" type="number" step="1" min="1" required>
+          </label>
+          <label>Tanggal
+            <input id="t-date" type="date" required>
+          </label>
+          <label>Catatan
+            <input id="t-note" maxlength="200">
+          </label>
+          <p class="error" id="transfer-error"></p>
+          <button class="btn" type="submit">Kirim Transfer</button>
+          <button class="btn btn-ghost" type="button" id="btn-transfer-cancel">Batal</button>
+        </form>
+
+        <p class="error" id="error"></p>
+        <p class="muted" id="empty" hidden>Belum ada dompet. Klik "+ Dompet" untuk membuat yang pertama.</p>
+        <div class="grid" id="wallet-list"></div>
+
+        <section class="panel" id="transfer-panel">
+          <h2>Transfer Terakhir</h2>
+          <div id="transfer-list"></div>
+        </section>
+      </main>
+    </div>
+  </div>
+  <nav id="bottomnav"></nav>
+  <script src="/vendor/supabase.js"></script>
+  <script type="module" src="/js/pages/wallet.js"></script>
+</body>
+</html>

@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Kategori - Monetra Tracker</title>
+  <link rel="stylesheet" href="/css/layout.css">
+</head>
+<body>
+  <div id="shell">
+    <aside id="sidebar"></aside>
+    <div id="main">
+      <header id="header"></header>
+      <main id="content">
+        <div class="page-head">
+          <h1>Kategori</h1>
+          <button class="btn" id="btn-add" hidden>+ Kategori</button>
+        </div>
+
+        <form class="panel" id="cat-form" hidden>
+          <label>Nama kategori
+            <input id="c-name" required maxlength="60">
+          </label>
+          <label>Jenis
+            <select id="c-type">
+              <option value="expense">Pengeluaran</option>
+              <option value="income">Pemasukan</option>
+            </select>
+          </label>
+          <label>Warna
+            <input id="c-color" type="color" value="#2563eb">
+          </label>
+          <p></p>
+          <button class="btn" type="submit">Simpan</button>
+          <button class="btn btn-ghost" type="button" id="btn-cancel">Batal</button>
+        </form>
+
+        <p class="error" id="error"></p>
+
+        <section class="panel">
+          <h2>Pemasukan</h2>
+          <ul class="cat-list" id="list-income"></ul>
+        </section>
+        <section class="panel">
+          <h2>Pengeluaran</h2>
+          <ul class="cat-list" id="list-expense"></ul>
+        </section>
+      </main>
+    </div>
+  </div>
+  <nav id="bottomnav"></nav>
+  <script src="/vendor/supabase.js"></script>
+  <script type="module" src="/js/categories.js"></script>
+</body>
+</html>

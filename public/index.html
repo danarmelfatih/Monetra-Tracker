@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Monetra Tracker membantu keluarga mencatat pemasukan, pengeluaran, anggaran, dan laporan keuangan dalam satu tempat.">
+  <link rel="manifest" href="/manifest.json">
+  <title>Monetra Tracker, Kelola Keuangan Keluarga Lebih Terarah</title>
+  <link rel="stylesheet" href="/css/marketing.css">
+</head>
+<body>
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <symbol id="i-receipt" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M6 3h12v18l-3-2-3 2-3-2-3 2V3Z"/><path d="M9 8h6M9 12h6M9 16h4"/>
+    </symbol>
+    <symbol id="i-wallet" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M3 7h15a3 3 0 0 1 3 3v7a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V7Z"/><path d="M3 7V5a2 2 0 0 1 2-2h11"/><circle cx="16" cy="13" r="1.2"/>
+    </symbol>
+    <symbol id="i-budget" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/>
+    </symbol>
+    <symbol id="i-report" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>
+    </symbol>
+    <symbol id="i-team" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="9" cy="8" r="3"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><path d="M16 5.5a3 3 0 0 1 0 5.5"/><path d="M17 14c2.2.7 4 2.6 4 6"/>
+    </symbol>
+    <symbol id="i-offline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M7 18h10a4 4 0 0 0 0-8 6 6 0 0 0-11-2 4 4 0 0 0 1 10Z"/><path d="M3 3l18 18"/>
+    </symbol>
+  </svg>
+
+  <header class="site-header">
+    <div class="container nav-wrap">
+      <nav class="nav" aria-label="Navigasi utama">
+        <a class="brand" href="#beranda">
+          <span class="brand-mark">M</span>
+          <span>Monetra Tracker</span>
+        </a>
+        <div class="nav-links">
+          <a href="#beranda">Beranda</a>
+          <a href="#fitur">Fitur</a>
+          <a href="#tentang">Tentang</a>
+        </div>
+        <div class="nav-actions">
+          <a class="nav-signin" href="/login">Masuk</a>
+          <a class="btn btn-primary" href="/login">Mulai Sekarang</a>
+          <button class="nav-toggle" id="nav-toggle" type="button" aria-expanded="false" aria-controls="mobile-menu" aria-label="Buka menu">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+          </button>
+        </div>
+      </nav>
+      <div class="mobile-menu" id="mobile-menu" hidden>
+        <a href="#beranda">Beranda</a>
+        <a href="#fitur">Fitur</a>
+        <a href="#tentang">Tentang</a>
+        <a href="/login">Masuk</a>
+        <a class="btn btn-primary" href="/login">Mulai Sekarang</a>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero" id="beranda">
+      <div class="container hero-grid">
+        <div class="hero-copy">
+          <h1>Keuangan Keluarga Lebih Rapi, Masa Depan Lebih Pasti.</h1>
+          <p>Catat pemasukan dan pengeluaran, kelola anggaran, serta pantau kondisi keuangan keluarga dengan lebih mudah dan terorganisir.</p>
+          <div class="hero-actions">
+            <a class="btn btn-primary" href="/login">Mulai Kelola Keuangan</a>
+            <a class="btn btn-secondary" href="#fitur">Pelajari Fitur</a>
+          </div>
+        </div>
+
+        <div class="preview-shell">
+          <div class="preview-card">
+            <div class="preview-top">
+              <span class="preview-title">Ringkasan keluarga</span>
+              <span class="preview-badge">Bulan ini</span>
+            </div>
+            <div class="preview-body">
+              <span class="preview-label">Total saldo</span>
+              <div class="preview-balance">Rp 24.750.000</div>
+              <div class="preview-metrics">
+                <div class="metric">
+                  <span class="label">Pemasukan</span>
+                  <span class="value income">Rp 8.200.000</span>
+                </div>
+                <div class="metric">
+                  <span class="label">Pengeluaran</span>
+                  <span class="value expense">Rp 3.450.000</span>
+                </div>
+              </div>
+              <div class="chart">
+                <div class="chart-head"><span>Aktivitas 6 bulan</span><span>Ilustrasi</span></div>
+                <div class="chart-bars" aria-hidden="true">
+                  <div class="bar" style="height:42%"></div>
+                  <div class="bar" style="height:58%"></div>
+                  <div class="bar" style="height:35%"></div>
+                  <div class="bar is-primary" style="height:82%"></div>
+                  <div class="bar" style="height:64%"></div>
+                  <div class="bar" style="height:50%"></div>
+                </div>
+                <div class="chart-labels" aria-hidden="true"><span>Jan</span><span>Feb</span><span>Mar</span><span>Apr</span><span>Mei</span><span>Jun</span></div>
+              </div>
+              <div class="preview-list">
+                <div class="preview-row"><span>Belanja bulanan</span><span>- Rp 850.000</span></div>
+                <div class="preview-row"><span>Gaji</span><span>+ Rp 8.200.000</span></div>
+              </div>
+              <p class="preview-note">Ilustrasi tampilan, bukan data Anda.</p>
+            </div>
+          </div>
+          <div class="floating-card top">Tersinkron<small>Ilustrasi status</small></div>
+          <div class="floating-card bottom">Anggaran terjaga<small>Ilustrasi status</small></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="fitur">
+      <div class="container">
+        <div class="section-head">
+          <h2>Semua Kebutuhan Keuangan dalam Satu Tempat</h2>
+          <p>Pantau pemasukan, kendalikan pengeluaran, dan rencanakan masa depan keuangan keluarga dalam satu tempat.</p>
+        </div>
+        <div class="feature-grid">
+          <article class="feature tinted">
+            <div class="feature-icon"><svg width="24" height="24"><use href="#i-receipt"/></svg></div>
+            <h3>Pencatatan Transaksi</h3>
+            <p>Catat pemasukan dan pengeluaran dengan mudah.</p>
+          </article>
+          <article class="feature">
+            <div class="feature-icon"><svg width="24" height="24"><use href="#i-wallet"/></svg></div>
+            <h3>Dompet Pribadi</h3>
+            <p>Kelola berbagai sumber keuangan secara terpisah.</p>
+          </article>
+          <article class="feature">
+            <div class="feature-icon"><svg width="24" height="24"><use href="#i-budget"/></svg></div>
+            <h3>Anggaran Keluarga</h3>
+            <p>Atur batas pengeluaran agar keuangan lebih terkontrol.</p>
+          </article>
+          <article class="feature">
+            <div class="feature-icon"><svg width="24" height="24"><use href="#i-report"/></svg></div>
+            <h3>Laporan Keuangan</h3>
+            <p>Pantau perkembangan kondisi keuangan melalui visualisasi.</p>
+          </article>
+          <article class="feature">
+            <div class="feature-icon"><svg width="24" height="24"><use href="#i-team"/></svg></div>
+            <h3>Kolaborasi Keluarga</h3>
+            <p>Kelola keuangan bersama dengan pembagian hak akses.</p>
+          </article>
+          <article class="feature accent">
+            <div class="feature-icon"><svg width="24" height="24"><use href="#i-offline"/></svg></div>
+            <h3>Akses Offline</h3>
+            <p>Tetap mencatat transaksi saat koneksi internet tidak tersedia dan sinkronkan kembali ketika online.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section steps-section">
+      <div class="container">
+        <div class="section-head">
+          <h2>Mulai dalam Tiga Langkah</h2>
+        </div>
+        <div class="step-grid">
+          <div class="step">
+            <span class="step-number">01</span>
+            <h3>Masuk dengan Google</h3>
+            <p>Gunakan akun Google Anda untuk masuk tanpa membuat kata sandi baru.</p>
+          </div>
+          <div class="step">
+            <span class="step-number">02</span>
+            <h3>Buat atau Gabung Keluarga</h3>
+            <p>Buat ruang keluarga baru atau bergabung lewat undangan dari anggota lain.</p>
+          </div>
+          <div class="step">
+            <span class="step-number">03</span>
+            <h3>Mulai Catat dan Kelola</h3>
+            <p>Isi dompet, catat transaksi, lalu pantau ringkasan keuangan keluarga.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="tentang">
+      <div class="container">
+        <div class="privacy-panel">
+          <div>
+            <h2>Keuangan Tetap dalam Kendali Anda.</h2>
+            <p>Setiap keluarga memiliki ruang tersendiri. Akses anggota diatur berdasarkan peran yang diberikan.</p>
+          </div>
+          <ul class="privacy-list">
+            <li>Transaksi pribadi dan bersama terpisah jelas.</li>
+            <li>Hak akses mengikuti peran anggota.</li>
+            <li>Data keluarga disimpan terpisah.</li>
+            <li>Penyimpanan cloud memudahkan akses dari berbagai perangkat.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="container">
+        <div class="cta-panel">
+          <h2>Mulai Kelola Keuangan Keluarga Hari Ini.</h2>
+          <p>Bangun kebiasaan finansial yang lebih teratur bersama Monetra Tracker.</p>
+          <a class="btn btn-secondary" href="/login">Mulai Sekarang</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-grid">
+      <div class="footer-brand">
+        <a class="brand" href="#beranda">
+          <span class="brand-mark">M</span>
+          <span>Monetra Tracker</span>
+        </a>
+        <p>Kelola Keuangan Keluarga, Lebih Terarah. Pantau pemasukan, kendalikan pengeluaran, dan rencanakan masa depan keuangan keluarga dalam satu tempat.</p>
+      </div>
+      <div class="footer-links">
+        <a href="#beranda">Beranda</a>
+        <a href="#fitur">Fitur</a>
+        <a href="#tentang">Tentang</a>
+        <a href="/login">Masuk</a>
+      </div>
+    </div>
+    <div class="container"><p class="copyright">© 2026 Monetra Tracker. Seluruh hak dilindungi.</p></div>
+  </footer>
+
+  <script src="/js/pages/landing.js" defer></script>
+<script>
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/service-worker.js', {scope: '/'}).then(registration => {
+    console.log('SW terdaftar, scope:', registration.scope);
+  }).catch(err => {
+    console.error('Gagal mendaftarkan SW:', err);
+  });
+}
+</script>
+</body>
+</html>

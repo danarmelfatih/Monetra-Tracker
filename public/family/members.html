@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Anggota Keluarga - Monetra Tracker</title>
+  <link rel="stylesheet" href="/css/layout.css">
+</head>
+<body>
+  <div id="shell">
+    <aside id="sidebar"></aside>
+    <div id="main">
+      <header id="header"></header>
+      <main id="content">
+        <div class="page-head"><h1>Anggota Keluarga</h1></div>
+
+        <section class="panel" id="rename-panel" hidden>
+          <h2>Nama Keluarga</h2>
+          <form id="rename-form">
+            <input id="family-name" required maxlength="100">
+            <button class="btn" type="submit">Simpan</button>
+          </form>
+        </section>
+
+        <section class="panel">
+          <h2>Daftar Anggota</h2>
+          <div id="member-list"></div>
+        </section>
+
+        <section class="panel" id="invite-panel" hidden>
+          <h2>Undang Anggota</h2>
+          <form id="invite-form">
+            <input id="invite-email" type="email" placeholder="email@contoh.com" required>
+            <select id="invite-role">
+              <option value="member">Member</option>
+              <option value="admin">Admin</option>
+            </select>
+            <button class="btn" type="submit">Buat Undangan</button>
+          </form>
+          <div id="invite-link" hidden></div>
+        </section>
+
+        <section class="panel" id="pending-panel" hidden>
+          <h2>Undangan Pending</h2>
+          <div id="pending-list"></div>
+        </section>
+
+        <p class="error" id="error"></p>
+      </main>
+    </div>
+  </div>
+  <nav id="bottomnav"></nav>
+  <script src="/vendor/supabase.js"></script>
+  <script type="module" src="/js/pages/family-members.js"></script>
+</body>
+</html>

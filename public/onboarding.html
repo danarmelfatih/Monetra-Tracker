@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mulai - Monetra Tracker</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; display: grid; place-items: center;
+           font-family: system-ui, sans-serif; background: #f4f6f8; color: #1f2937; }
+    .card { background: #fff; padding: 2rem; border-radius: 12px; width: min(92vw, 420px);
+            box-shadow: 0 2px 12px rgba(0,0,0,.08); }
+    h1 { margin: 0 0 1rem; font-size: 1.4rem; text-align: center; }
+    h2 { margin: 1.25rem 0 .5rem; font-size: 1.1rem; }
+    .muted { color: #6b7280; text-align: center; }
+    .stack { display: grid; gap: .5rem; }
+    .btn { width: 100%; padding: .75rem; border: 0; border-radius: 8px; cursor: pointer;
+           background: #2563eb; color: #fff; font-size: 1rem; }
+    .btn:disabled { opacity: .6; cursor: not-allowed; }
+    .btn-ghost { background: transparent; color: #1f2937; border: 1px solid #e5e7eb; }
+    input { width: 100%; padding: .7rem; margin: 0 0 .75rem; border: 1px solid #cbd5e1;
+            border-radius: 8px; font-size: 1rem; }
+    .error { color: #dc2626; min-height: 1.2em; font-size: .9rem; margin: .75rem 0 0; }
+    [hidden] { display: none !important; }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <h1>Monetra Tracker</h1>
+    <p class="muted" id="loading">Memeriksa sesi Anda...</p>
+
+    <section id="invite-box" hidden>
+      <h2>Undangan Keluarga</h2>
+      <p>Anda diundang untuk bergabung ke sebuah keluarga.</p>
+      <button class="btn" id="btn-accept" type="button">Terima Undangan</button>
+    </section>
+
+    <section id="family-list-box" hidden>
+      <h2>Pilih Keluarga</h2>
+      <div class="stack" id="family-list"></div>
+    </section>
+
+    <section id="create-box" hidden>
+      <h2>Buat Keluarga Baru</h2>
+      <form id="family-form">
+        <input id="family-name" placeholder="Nama keluarga, mis. Keluarga Danar" required maxlength="100">
+        <button class="btn" type="submit">Buat Keluarga</button>
+      </form>
+    </section>
+
+    <p class="error" id="error" role="alert"></p>
+    <button class="btn btn-ghost" id="btn-retry" type="button" hidden>Muat ulang</button>
+  </main>
+
+  <script src="/vendor/supabase.js"></script>
+  <script type="module" src="/js/pages/onboarding.js"></script>
+</body>
+</html>

@@ -1,0 +1,10 @@
+{
+  "name": "Monetra Tracker",
+  "short_name": "Monetra",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f7f9f8",
+  "theme_color": "#087f5b",
+  "description": "Aplikasi pengelolaan keuangan keluarga",
+  "icons": []
+}

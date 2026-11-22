@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Dashboard - Monetra Tracker</title>
+  <link rel="stylesheet" href="/css/layout.css">
+</head>
+<body>
+  <div id="shell">
+    <aside id="sidebar"></aside>
+    <div id="main">
+      <header id="header"></header>
+      <main id="content">
+        <div class="page-head">
+          <h1>Ringkasan</h1>
+          <a class="btn btn-ghost dash-action" href="/transactions">Lihat transaksi</a>
+        </div>
+
+        <p class="error" id="error"></p>
+        <button class="btn btn-ghost dash-action" id="btn-retry" hidden>Coba lagi</button>
+
+        <section class="panel stat">
+          <div class="label">Saldo semua dompet keluarga</div>
+          <div class="value" id="total">Memuat saldo...</div>
+          <div class="muted" id="balance-note"></div>
+        </section>
+
+        <section class="panel">
+          <div class="summary-row">
+            <div class="summary-item">
+              <div class="label">Pemasukan bulan ini</div>
+              <div class="value income" id="income">Memuat...</div>
+            </div>
+            <div class="summary-item">
+              <div class="label">Pengeluaran bulan ini</div>
+              <div class="value expense" id="expense">Memuat...</div>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="section-head">
+            <h2>Budget bulan ini</h2>
+            <a class="btn btn-ghost dash-action" href="/budgets">Kelola budget</a>
+          </div>
+          <div class="budget-summary-grid">
+            <div class="summary-item">
+              <div class="label">Total batas</div>
+              <div class="value" id="budget-limit">Memuat...</div>
+            </div>
+            <div class="summary-item">
+              <div class="label">Terpakai</div>
+              <div class="value expense" id="budget-spent">Memuat...</div>
+            </div>
+            <div class="summary-item">
+              <div class="label">Sisa</div>
+              <div class="value" id="budget-remaining">Memuat...</div>
+            </div>
+          </div>
+          <div class="budget-list" id="budget-detail" hidden></div>
+          <p class="muted" id="budget-empty" hidden></p>
+        </section>
+
+        <section class="panel">
+          <div class="section-head">
+            <h2>Transaksi terakhir</h2>
+            <a class="btn btn-ghost dash-action" href="/transactions?new=1">Catat transaksi</a>
+          </div>
+          <p class="muted" id="loading">Memuat transaksi...</p>
+          <p class="muted" id="recent-empty" hidden>Belum ada transaksi tercatat.</p>
+          <a class="btn btn-ghost dash-action" id="empty-action" href="/transactions?new=1" hidden>Catat transaksi pertama</a>
+          <div class="cat-list" id="recent"></div>
+        </section>
+      </main>
+    </div>
+  </div>
+  <nav id="bottomnav"></nav>
+  <script src="/vendor/supabase.js"></script>
+  <script type="module" src="/js/pages/dashboard.js"></script>
+</body>
+</html>

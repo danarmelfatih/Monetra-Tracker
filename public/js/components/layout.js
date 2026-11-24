@@ -45,16 +45,16 @@ const greetingFor = (name) => {
   return `Selamat ${part}, ${first}!`
 }
 
-export async function renderLayout({ user, familyName, activePath, familyId, greeting = false }) {
+export async function renderLayout({ user, familyName, activePath, familyId, greeting = false, guest = false }) {
   applyTheme(readTheme())
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/service-worker.js').catch(() => {})
   }
 
-  const familyLabel = cleanText(familyName, 'Keluarga')
-  const userName = cleanText(user.user_metadata?.full_name, cleanText(user.email, 'Anggota'))
-  const userEmail = cleanText(user.email, '')
-  const initial = userName.charAt(0).toUpperCase()
+  const familyLabel = guest ? 'Mode Tamu' : cleanText(familyName, 'Keluarga')
+  const userName = guest ? 'Tamu' : cleanText(user.user_metadata?.full_name, cleanText(user.email, 'Anggota'))
+  const userEmail = guest ? '' : cleanText(user.email, '')
+  const initial = guest ? 'T' : userName.charAt(0).toUpperCase()
 
   const isActive = (href) => href === activePath
   const sidebarLink = (n) => el('a', {
@@ -63,12 +63,19 @@ export async function renderLayout({ user, familyName, activePath, familyId, gre
     'aria-current': isActive(n.href) ? 'page' : null
   }, icon(n.icon), el('span', {}, n.label))
 
-  const sidebarUser = el('div', { class: 'sidebar-user' },
-    el('span', { class: 'sidebar-avatar', 'aria-hidden': 'true' }, initial),
-    el('div', { class: 'sidebar-user-copy' },
-      el('span', { class: 'sidebar-user-name' }, userName),
-      el('span', { class: 'sidebar-user-family' }, familyLabel)),
-    el('button', { class: 'btn btn-ghost sidebar-logout', onclick: signOut }, 'Keluar'))
+  const sidebarUser = guest
+    ? el('div', { class: 'sidebar-user' },
+      el('span', { class: 'sidebar-avatar', 'aria-hidden': 'true' }, initial),
+      el('div', { class: 'sidebar-user-copy' },
+        el('span', { class: 'sidebar-user-name' }, userName),
+        el('span', { class: 'sidebar-user-family' }, 'Data tidak ditampilkan')),
+      el('a', { class: 'btn btn-ghost sidebar-logout', href: '/login' }, 'Masuk'))
+    : el('div', { class: 'sidebar-user' },
+      el('span', { class: 'sidebar-avatar', 'aria-hidden': 'true' }, initial),
+      el('div', { class: 'sidebar-user-copy' },
+        el('span', { class: 'sidebar-user-name' }, userName),
+        el('span', { class: 'sidebar-user-family' }, familyLabel)),
+      el('button', { class: 'btn btn-ghost sidebar-logout', onclick: signOut }, 'Keluar'))
 
   document.getElementById('sidebar')
     .replaceChildren(
@@ -177,8 +184,9 @@ export async function renderLayout({ user, familyName, activePath, familyId, gre
   }, el('span', { class: 'avatar', 'aria-hidden': 'true' }, initial), el('span', {}, 'Profil'))
 
   let sb = null
-  const readKey = `notifications-read:${user.id}`
-  const seenKey = `notifications-seen:${user.id}`
+  const notificationUserId = guest ? 'guest' : user.id
+  const readKey = `notifications-read:${notificationUserId}`
+  const seenKey = `notifications-seen:${notificationUserId}`
   let notificationItems = []
 
   const readIds = () => {
@@ -361,30 +369,36 @@ export async function renderLayout({ user, familyName, activePath, familyId, gre
   })
 
   let switcher = null
-  try {
-    const families = await getMyFamilies(user.id)
-    if (families.length > 1) {
-      switcher = el('select', {
-        class: 'family-switch',
-        'aria-label': 'Ganti keluarga',
-        onchange: (e) => {
-          setActiveFamily(user.id, e.target.value)
-          location.reload()
-        }
-      }, ...families.map((f) => el('option', {
-        value: f.family_id,
-        selected: f.family_id === familyId
-      }, cleanText(f.families?.name, 'Keluarga'))))
+  if (!guest) {
+    try {
+      const families = await getMyFamilies(user.id)
+      if (families.length > 1) {
+        switcher = el('select', {
+          class: 'family-switch',
+          'aria-label': 'Ganti keluarga',
+          onchange: (e) => {
+            setActiveFamily(user.id, e.target.value)
+            location.reload()
+          }
+        }, ...families.map((f) => el('option', {
+          value: f.family_id,
+          selected: f.family_id === familyId
+        }, cleanText(f.families?.name, 'Keluarga'))))
+      }
+    } catch {
+      switcher = null
     }
-  } catch {
-    switcher = null
   }
 
-  const headerTitle = greeting
+  const headerTitle = guest
     ? el('div', { class: 'header-title' },
-      el('span', { class: 'header-greeting' }, greetingFor(userName)),
+      el('span', { class: 'header-greeting' }, 'Mode Tamu'),
       el('h1', {}, 'Dashboard'))
-    : el('strong', { class: 'header-family' }, familyLabel)
+    : greeting
+      ? el('div', { class: 'header-title' },
+        el('span', { class: 'header-greeting' }, greetingFor(userName)),
+        el('h1', {}, 'Dashboard'))
+      : el('strong', { class: 'header-family' }, familyLabel)
 
   const header = document.getElementById('header')
   header.replaceChildren(
@@ -392,51 +406,55 @@ export async function renderLayout({ user, familyName, activePath, familyId, gre
     switcher,
     el('div', { class: 'header-actions' },
       themeButton,
-      el('div', { class: 'notification-wrap' }, notificationButton, notificationPanel),
-      el('div', { class: 'header-profile' }, profileButton, profilePanel))
+      guest
+        ? el('a', { class: 'btn btn-ghost', href: '/login' }, 'Masuk')
+        : el('div', { class: 'notification-wrap' }, notificationButton, notificationPanel),
+      guest ? null : el('div', { class: 'header-profile' }, profileButton, profilePanel))
   )
   stripNullText(header)
 
-  try {
-    sb = await getSb()
-    const [budgetResult, storedResult] = await Promise.allSettled([
-      getBudgetOverview(sb, familyId, user.id),
-      getNotifications(sb, familyId, user.id)
-    ])
+  if (!guest) {
+    try {
+      sb = await getSb()
+      const [budgetResult, storedResult] = await Promise.allSettled([
+        getBudgetOverview(sb, familyId, user.id),
+        getNotifications(sb, familyId, user.id)
+      ])
 
-    let budgetItems = []
-    let storedItems = []
-    let failed = 0
+      let budgetItems = []
+      let storedItems = []
+      let failed = 0
 
-    if (budgetResult.status === 'fulfilled') {
-      budgetItems = buildBudgetItems(budgetResult.value.budgets)
-    } else {
-      failed += 1
-    }
+      if (budgetResult.status === 'fulfilled') {
+        budgetItems = buildBudgetItems(budgetResult.value.budgets)
+      } else {
+        failed += 1
+      }
 
-    if (storedResult.status === 'fulfilled') {
-      storedItems = storedResult.value.map((item) => ({
-        id: `db-${item.id}`,
-        source: 'db',
-        dbId: item.id,
-        title: cleanText(item.title, 'Notifikasi'),
-        body: cleanText(item.body, ''),
-        href: item.href || null
-      }))
-    } else {
-      failed += 1
-    }
+      if (storedResult.status === 'fulfilled') {
+        storedItems = storedResult.value.map((item) => ({
+          id: `db-${item.id}`,
+          source: 'db',
+          dbId: item.id,
+          title: cleanText(item.title, 'Notifikasi'),
+          body: cleanText(item.body, ''),
+          href: item.href || null
+        }))
+      } else {
+        failed += 1
+      }
 
-    notificationItems = [...storedItems, ...budgetItems]
-    if (!notificationItems.length && failed === 2) {
+      notificationItems = [...storedItems, ...budgetItems]
+      if (!notificationItems.length && failed === 2) {
+        badge.hidden = true
+        notificationList.replaceChildren(el('p', { class: 'notification-empty' }, 'Notifikasi tidak dapat dimuat. Muat ulang halaman.'))
+      } else {
+        updateBadge()
+        renderNotifications()
+      }
+    } catch {
       badge.hidden = true
       notificationList.replaceChildren(el('p', { class: 'notification-empty' }, 'Notifikasi tidak dapat dimuat. Muat ulang halaman.'))
-    } else {
-      updateBadge()
-      renderNotifications()
     }
-  } catch {
-    badge.hidden = true
-    notificationList.replaceChildren(el('p', { class: 'notification-empty' }, 'Notifikasi tidak dapat dimuat. Muat ulang halaman.'))
   }
 }

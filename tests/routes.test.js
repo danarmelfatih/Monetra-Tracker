@@ -40,6 +40,8 @@ test('/api/health dan /api/config merespons JSON', async () => {
 
 test('halaman utama aplikasi tersaji dengan konten yang diharapkan', async () => {
   const pages = [
+    ['/', 'Kelola Keuangan Keluarga'],
+    ['/', 'dashboard?guest=1'],
     ['/dashboard', 'Arus Keuangan'],
     ['/dashboard', 'Total Saldo (Siap Pakai)'],
     ['/dashboard', 'monetra-theme'],
@@ -72,6 +74,7 @@ test('halaman utama aplikasi tersaji dengan konten yang diharapkan', async () =>
 test('aset kritis dan manifest PWA tersaji', async () => {
   const assets = [
     ['/js/lib/budget.js', 'getBudgetOverview'],
+    ['/js/lib/guest.js', 'shouldUseGuestDashboard'],
     ['/js/lib/notifications.js', 'getNotifications'],
     ['/js/lib/theme.js', 'toggleTheme'],
     ['/js/lib/privacy.js', 'toggleHideAmounts'],
@@ -81,15 +84,17 @@ test('aset kritis dan manifest PWA tersaji', async () => {
     ['/js/lib/report.js', 'buildReport'],
     ['/js/lib/wallet-summary.js', 'splitWalletBalances'],
     ['/js/pages/dashboard.js', 'initPrivacyToggle'],
+    ['/js/pages/dashboard.js', 'renderGuestDashboard'],
     ['/js/pages/savings.js', 'savings-list'],
     ['/js/pages/budgets.js', 'budget-form'],
     ['/js/pages/reports.js', 'report-type'],
     ['/js/components/layout.js', 'notification-panel'],
+    ['/js/components/layout.js', 'Mode Tamu'],
     ['/js/components/layout.js', 'theme-toggle'],
     ['/js/components/layout.js', 'stripNullText'],
     ['/js/lib/icons.js', 'export function icon'],
     ['/js/categories.js', './lib/app.js'],
-    ['/service-worker.js', 'monetra-cache-v16'],
+    ['/service-worker.js', 'monetra-cache-v17'],
     ['/manifest.json', 'Monetra Tracker']
   ]
   for (const [path, marker] of assets) {

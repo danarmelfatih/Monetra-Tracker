@@ -1,5 +1,7 @@
 import { getSb } from '../lib/supabase.js'
 import { initPage } from '../lib/app.js'
+import { renderLayout } from '../components/layout.js'
+import { shouldUseGuestDashboard } from '../lib/guest.js'
 import { el } from '../lib/dom.js'
 import { icon } from '../lib/icons.js'
 import { formatRupiah } from '../lib/format.js'
@@ -10,9 +12,69 @@ import { initPrivacyToggle } from '../components/privacy-toggle.js'
 const SVG_NS = 'http://www.w3.org/2000/svg'
 const CHART_COLORS = ['#087F5B', '#16A36A', '#086B4D', '#9A621A', '#B93E43', '#5C6B65']
 
-const ctx = await initPage('/dashboard', { greeting: true })
+function renderGuestDashboard() {
+  const $ = (id) => document.getElementById(id)
+  const setText = (id, value) => {
+    const node = $(id)
+    if (node) node.textContent = value
+  }
+  const message = (text) => el('p', { class: 'muted' }, text)
 
-if (ctx) {
+  setText('total', '-')
+  setText('balance-note', 'Mode tamu, data keuangan tidak ditampilkan. Masuk untuk melihat saldo Anda.')
+  setText('savings-count', '')
+  setText('savings-total', '-')
+  setText('income', '-')
+  setText('expense', '-')
+  setText('budget-remaining', '-')
+  setText('budget-usage', 'Tidak tersedia')
+  setText('budget-limit', '-')
+  setText('budget-spent', '-')
+
+  const hideButton = $('btn-hide-amounts')
+  if (hideButton) hideButton.hidden = true
+
+  $('flow-chart')?.replaceChildren(message('Masuk untuk melihat grafik arus keuangan.'))
+  $('category-chart')?.replaceChildren(message('Masuk untuk melihat pengeluaran kategori.'))
+
+  const loading = $('loading')
+  if (loading) loading.hidden = true
+  const recentEmpty = $('recent-empty')
+  if (recentEmpty) {
+    recentEmpty.textContent = 'Masuk untuk melihat transaksi terbaru.'
+    recentEmpty.hidden = false
+  }
+  const emptyAction = $('empty-action')
+  if (emptyAction) emptyAction.hidden = true
+  const budgetEmpty = $('budget-empty')
+  if (budgetEmpty) {
+    budgetEmpty.textContent = 'Masuk untuk melihat anggaran aktif.'
+    budgetEmpty.hidden = false
+  }
+
+  document.querySelectorAll('[data-icon]').forEach((node) => {
+    node.replaceChildren(icon(node.dataset.icon))
+  })
+}
+
+const guestMode = shouldUseGuestDashboard({
+  search: location.search,
+  userAgent: navigator.userAgent,
+  width: window.innerWidth
+})
+const ctx = guestMode ? null : await initPage('/dashboard', { greeting: true })
+
+if (guestMode) {
+  await renderLayout({
+    user: { id: 'guest', email: '', user_metadata: { full_name: 'Tamu' } },
+    familyName: 'Mode Tamu',
+    activePath: '/dashboard',
+    familyId: null,
+    greeting: true,
+    guest: true
+  })
+  renderGuestDashboard()
+} else if (ctx) {
   const sb = await getSb()
   const $ = (id) => document.getElementById(id)
   initPrivacyToggle()

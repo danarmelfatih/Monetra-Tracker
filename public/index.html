@@ -3,6 +3,21 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script>
+    try {
+      var mobile = /android|iphone|ipad|ipod|mobile/i.test(navigator.userAgent) || (window.matchMedia && window.matchMedia('(max-width: 767px)').matches) || window.innerWidth <= 767
+      var signedIn = false
+      for (var i = 0; i < localStorage.length; i += 1) {
+        var key = localStorage.key(i)
+        if (key && /^sb-.*-auth-token$/.test(key) && String(localStorage.getItem(key) || '').includes('access_token')) {
+          signedIn = true
+          break
+        }
+      }
+      if (signedIn) location.replace('/dashboard')
+      else if (mobile) location.replace('/dashboard?guest=1')
+    } catch {}
+  </script>
   <meta name="description" content="Monetra Tracker membantu keluarga mencatat pemasukan, pengeluaran, anggaran, dan laporan keuangan dalam satu tempat.">
   <link rel="manifest" href="/manifest.json">
   <title>Monetra Tracker, Kelola Keuangan Keluarga Lebih Terarah</title>

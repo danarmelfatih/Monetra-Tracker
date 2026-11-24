@@ -1,4 +1,5 @@
 import { getSb } from './supabase.js'
+import { clearGuestMode } from './guest.js'
 
 export function withTimeout(promise, ms, message) {
   let timer
@@ -14,6 +15,7 @@ export function withTimeout(promise, ms, message) {
 // Setelah fungsi ini selesai, JANGAN melakukan navigasi lain.
 export async function signInWithGoogle() {
   const sb = await getSb()
+  clearGuestMode()
   const { data, error } = await sb.auth.signInWithOAuth({
     provider: 'google',
     options: {

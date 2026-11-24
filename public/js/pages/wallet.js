@@ -3,20 +3,31 @@ import { initPage } from '../lib/app.js'
 import { el } from '../lib/dom.js'
 import { formatRupiah } from '../lib/format.js'
 import { initPrivacyToggle } from '../components/privacy-toggle.js'
+import {
+  guestAvailable,
+  guestWalletBalances,
+  listGuestTransfers,
+  listGuestWallets,
+  saveGuestWallet,
+  archiveGuestWallet,
+  createGuestTransfer,
+  buildGuestReportData
+} from '../lib/guest-store.js'
 
 const ctx = await initPage('/wallets')
 
 if (ctx) {
-  const sb = await getSb()
+  const $ = (id) => document.getElementById(id)
+  initPrivacyToggle()
+  const form = $('wallet-form')
+  const transferForm = $('transfer-form')
+  const guest = ctx.guest === true
+  const sb = guest ? null : await getSb()
   const { user, familyId } = ctx
   const TYPE_LABEL = {
     cash: 'Tunai', bank: 'Bank', ewallet: 'E-wallet', savings: 'Tabungan', other: 'Lainnya'
   }
 
-  const $ = (id) => document.getElementById(id)
-  initPrivacyToggle()
-  const form = $('wallet-form')
-  const transferForm = $('transfer-form')
   let editingId = null
   let wallets = []
 
@@ -24,6 +35,21 @@ if (ctx) {
   const showTransferError = (msg = '') => { $('transfer-error').textContent = msg }
 
   async function load() {
+    if (guest) {
+      const ok = await guestAvailable()
+      if (!ok) return showError('IndexedDB tidak tersedia di perangkat ini.')
+      const data = await buildGuestReportData()
+      wallets = data.wallets.filter((w) => !w.is_archived)
+      const balances = new Map(guestWalletBalances(data.wallets, data.transactions, data.transfers).map((r) => [r.wallet_id, Number(r.balance)]))
+      const nameById = new Map(data.wallets.map((r) => [r.id, r.name]))
+      $('wallet-list').replaceChildren(...wallets.map((wal) => card(wal, balances)))
+      $('empty').hidden = wallets.length > 0
+      renderTransfers(await listGuestTransfers(10), nameById)
+      fillTransferOptions()
+      showError()
+      return
+    }
+
     const [w, b, t, names] = await Promise.all([
       sb.from('wallets')
         .select('id, name, type, initial_balance')
@@ -97,9 +123,16 @@ if (ctx) {
 
   async function archive(w) {
     if (!confirm(`Arsipkan dompet "${w.name}"?`)) return
-    const { error } = await sb.from('wallets').update({ is_archived: true }).eq('id', w.id)
-    if (error) return showError(error.message)
-    await load()
+    try {
+      if (guest) await archiveGuestWallet(w.id)
+      else {
+        const { error } = await sb.from('wallets').update({ is_archived: true }).eq('id', w.id)
+        if (error) throw error
+      }
+      await load()
+    } catch (e) {
+      showError(e.message)
+    }
   }
 
   $('btn-add').addEventListener('click', () => openForm())
@@ -113,19 +146,24 @@ if (ctx) {
       type: $('w-type').value,
       initial_balance: Number($('w-balance').value)
     }
-    let error
-    if (editingId) {
-      ({ error } = await sb.from('wallets').update(payload).eq('id', editingId))
-    } else {
-      ({ error } = await sb.from('wallets').insert({
-        family_id: familyId,
-        owner_id: user.id,
-        ...payload
-      }))
+    try {
+      if (guest) await saveGuestWallet(payload, editingId)
+      else if (editingId) {
+        const { error } = await sb.from('wallets').update(payload).eq('id', editingId)
+        if (error) throw error
+      } else {
+        const { error } = await sb.from('wallets').insert({
+          family_id: familyId,
+          owner_id: user.id,
+          ...payload
+        })
+        if (error) throw error
+      }
+      closeForm()
+      await load()
+    } catch (err) {
+      showError(err.message)
     }
-    if (error) return showError(error.message)
-    closeForm()
-    await load()
   })
 
   $('btn-transfer').addEventListener('click', () => {
@@ -146,32 +184,37 @@ if (ctx) {
   transferForm.addEventListener('submit', async (e) => {
     e.preventDefault()
     showTransferError()
-    const from = $('t-from').value
-    const to = $('t-to').value
-    const amount = Number($('t-amount').value)
-    if (!from || !to) return showTransferError('Pilih dompet asal dan tujuan.')
-    if (from === to) return showTransferError('Dompet asal dan tujuan harus berbeda.')
-    if (!Number.isFinite(amount) || amount <= 0) return showTransferError('Nominal harus lebih dari 0.')
-
-    const { data: bal, error: balError } = await sb
-      .from('wallet_balances').select('balance').eq('wallet_id', from).maybeSingle()
-    if (balError) return showTransferError(balError.message)
-    if (Number(bal?.balance ?? 0) < amount) return showTransferError('Saldo dompet asal tidak cukup.')
-
-    const { error } = await sb.from('transfers').insert({
-      family_id: familyId,
-      from_wallet_id: from,
-      to_wallet_id: to,
-      amount,
+    const payload = {
+      from_wallet_id: $('t-from').value,
+      to_wallet_id: $('t-to').value,
+      amount: Number($('t-amount').value),
       transfer_date: $('t-date').value,
-      note: $('t-note').value.trim() || null,
-      created_by: user.id,
-      client_op_id: crypto.randomUUID()
-    })
-    if (error) return showTransferError(error.message)
-    transferForm.hidden = true
-    transferForm.reset()
-    await load()
+      note: $('t-note').value.trim() || null
+    }
+    try {
+      if (guest) await createGuestTransfer(payload)
+      else {
+        if (!payload.from_wallet_id || !payload.to_wallet_id) throw new Error('Pilih dompet asal dan tujuan.')
+        if (payload.from_wallet_id === payload.to_wallet_id) throw new Error('Dompet asal dan tujuan harus berbeda.')
+        if (!Number.isFinite(payload.amount) || payload.amount <= 0) throw new Error('Nominal harus lebih dari 0.')
+        const { data: bal, error: balError } = await sb
+          .from('wallet_balances').select('balance').eq('wallet_id', payload.from_wallet_id).maybeSingle()
+        if (balError) throw balError
+        if (Number(bal?.balance ?? 0) < payload.amount) throw new Error('Saldo dompet asal tidak cukup.')
+        const { error } = await sb.from('transfers').insert({
+          family_id: familyId,
+          ...payload,
+          created_by: user.id,
+          client_op_id: crypto.randomUUID()
+        })
+        if (error) throw error
+      }
+      transferForm.hidden = true
+      transferForm.reset()
+      await load()
+    } catch (err) {
+      showTransferError(err.message)
+    }
   })
 
   await load()

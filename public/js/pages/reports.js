@@ -13,13 +13,15 @@ import {
   toExcel,
   downloadFile
 } from '../lib/report.js'
+import { guestAvailable, buildGuestReportData } from '../lib/guest-store.js'
 
 const ctx = await initPage('/reports')
 
 if (ctx) {
-  const sb = await getSb()
-  const { familyId } = ctx
   const $ = (id) => document.getElementById(id)
+  const guest = ctx.guest === true
+  const sb = guest ? null : await getSb()
+  const { familyId } = ctx
   let refs = { categories: [], members: [], wallets: [] }
   let current = null
   let currentType = 'pemasukan'
@@ -63,23 +65,34 @@ if (ctx) {
   }
 
   async function loadRefs() {
-    const [categoryRes, memberRes, walletRes] = await Promise.all([
-      sb.from('categories').select('id, name').eq('family_id', familyId).order('name'),
-      sb.from('family_members')
-        .select('user_id, profiles(full_name, email)')
-        .eq('family_id', familyId)
-        .eq('status', 'active'),
-      sb.from('wallets').select('id, name, type').eq('family_id', familyId).order('name')
-    ])
-    const err = categoryRes.error || memberRes.error || walletRes.error
-    if (err) throw err
-    refs = {
-      categories: categoryRes.data ?? [],
-      members: memberRes.data ?? [],
-      wallets: walletRes.data ?? []
+    if (guest) {
+      const ok = await guestAvailable()
+      if (!ok) throw new Error('IndexedDB tidak tersedia di perangkat ini.')
+      const data = await buildGuestReportData()
+      refs = {
+        categories: data.categories.filter((c) => !c.is_archived),
+        members: data.members,
+        wallets: data.wallets
+      }
+    } else {
+      const [categoryRes, memberRes, walletRes] = await Promise.all([
+        sb.from('categories').select('id, name').eq('family_id', familyId).order('name'),
+        sb.from('family_members')
+          .select('user_id, profiles(full_name, email)')
+          .eq('family_id', familyId)
+          .eq('status', 'active'),
+        sb.from('wallets').select('id, name, type').eq('family_id', familyId).order('name')
+      ])
+      const err = categoryRes.error || memberRes.error || walletRes.error
+      if (err) throw err
+      refs = {
+        categories: categoryRes.data ?? [],
+        members: memberRes.data ?? [],
+        wallets: walletRes.data ?? []
+      }
     }
     fillSelect($('filter-category'), refs.categories, 'Semua kategori', 'id', (c) => c.name)
-    fillSelect($('filter-member'), refs.members, 'Semua anggota', 'user_id',
+    fillSelect($('filter-member'), refs.members, guest ? 'Tamu' : 'Semua anggota', 'user_id',
       (m) => m.profiles?.full_name || m.profiles?.email || 'Anggota')
     fillSelect($('filter-wallet'), refs.wallets, 'Semua dompet', 'id',
       (w) => walletKindLabel(w.type) === 'Tabungan' ? `${w.name} (Tabungan)` : w.name)
@@ -206,37 +219,59 @@ if (ctx) {
     }
 
     try {
-      let query = sb.from('transactions')
-        .select('id, title, amount, type, transaction_date, note, visibility, category_id, wallet_id, created_by, categories(name), wallets(name), profiles(full_name, email)')
-        .eq('family_id', familyId)
-        .is('deleted_at', null)
-        .gte('transaction_date', start)
-        .lte('transaction_date', end)
-        .order('transaction_date', { ascending: false })
-        .limit(1000)
-      if ($('filter-category').value) query = query.eq('category_id', $('filter-category').value)
-      if ($('filter-member').value) query = query.eq('created_by', $('filter-member').value)
-      if ($('filter-wallet').value) query = query.eq('wallet_id', $('filter-wallet').value)
+      if (guest) {
+        const ok = await guestAvailable()
+        if (!ok) throw new Error('IndexedDB tidak tersedia di perangkat ini.')
+        const data = await buildGuestReportData({
+          from: start,
+          to: end,
+          categoryId: $('filter-category').value,
+          walletId: $('filter-wallet').value,
+          memberId: $('filter-member').value
+        })
+        currentRange = { start, end }
+        current = buildReport({
+          transactions: data.transactions,
+          wallets: data.wallets,
+          balances: data.balances,
+          categories: data.categories,
+          members: data.members
+        })
+      } else {
+        let query = sb.from('transactions')
+          .select('id, title, amount, type, transaction_date, note, visibility, category_id, wallet_id, created_by, categories(name), wallets(name), profiles(full_name, email)')
+          .eq('family_id', familyId)
+          .is('deleted_at', null)
+          .gte('transaction_date', start)
+          .lte('transaction_date', end)
+          .order('transaction_date', { ascending: false })
+          .limit(1000)
+        if ($('filter-category').value) query = query.eq('category_id', $('filter-category').value)
+        if ($('filter-member').value) query = query.eq('created_by', $('filter-member').value)
+        if ($('filter-wallet').value) query = query.eq('wallet_id', $('filter-wallet').value)
 
-      const [txRes, walletRes, balanceRes] = await Promise.all([
-        query,
-        sb.from('wallets').select('id, name, type').eq('family_id', familyId).order('name'),
-        sb.from('wallet_balances').select('wallet_id, balance').eq('family_id', familyId)
-      ])
-      const err = txRes.error || walletRes.error || balanceRes.error
-      if (err) throw err
+        const [txRes, walletRes, balanceRes] = await Promise.all([
+          query,
+          sb.from('wallets').select('id, name, type').eq('family_id', familyId).order('name'),
+          sb.from('wallet_balances').select('wallet_id, balance').eq('family_id', familyId)
+        ])
+        const err = txRes.error || walletRes.error || balanceRes.error
+        if (err) throw err
 
-      currentRange = { start, end }
-      current = buildReport({
-        transactions: txRes.data ?? [],
-        wallets: walletRes.data ?? [],
-        balances: balanceRes.data ?? [],
-        categories: refs.categories,
-        members: refs.members
-      })
+        currentRange = { start, end }
+        current = buildReport({
+          transactions: txRes.data ?? [],
+          wallets: walletRes.data ?? [],
+          balances: balanceRes.data ?? [],
+          categories: refs.categories,
+          members: refs.members
+        })
+      }
       render()
       setExportEnabled(true)
-      $('filter-note').textContent = 'Laporan mengikuti aturan visibilitas transaksi akun ini. Menampilkan maksimal 1000 transaksi terakhir pada rentang ini.'
+      $('filter-note').textContent = guest
+        ? 'Mode tamu: laporan dihitung dari data lokal di perangkat ini.'
+        : 'Laporan mengikuti aturan visibilitas transaksi akun ini. Menampilkan maksimal 1000 transaksi terakhir pada rentang ini.'
     } catch (e) {
       current = null
       $('report-summary').replaceChildren()

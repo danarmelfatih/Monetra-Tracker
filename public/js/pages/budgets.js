@@ -3,14 +3,16 @@ import { initPage } from '../lib/app.js'
 import { el } from '../lib/dom.js'
 import { formatRupiah } from '../lib/format.js'
 import { getBudgetOverview } from '../lib/budget.js'
+import { guestAvailable, getGuestBudgetOverview, saveGuestBudget, archiveGuestBudget } from '../lib/guest-store.js'
 
 const ctx = await initPage('/budgets')
 
 if (ctx) {
-  const sb = await getSb()
-  const { user, familyId } = ctx
   const $ = (id) => document.getElementById(id)
   const form = $('budget-form')
+  const guest = ctx.guest === true
+  const sb = guest ? null : await getSb()
+  const { user, familyId } = ctx
   let overview = null
 
   const setError = (message = '') => { $('error').textContent = message }
@@ -26,7 +28,7 @@ if (ctx) {
       ...expenseCategories.map((c) => el('option', { value: c.id }, c.name))
     ]
     const memberOptions = [
-      el('option', { value: '' }, 'Seluruh anggota'),
+      el('option', { value: '' }, guest ? 'Tamu' : 'Seluruh anggota'),
       ...data.members.map((m) => el('option', { value: m.user_id },
         m.profiles?.full_name || m.profiles?.email || 'Anggota'))
     ]
@@ -44,9 +46,11 @@ if (ctx) {
     form.querySelectorAll('input, select, button').forEach((control) => {
       control.disabled = !canManage
     })
-    $('form-note').textContent = canManage
-      ? 'Budget berlaku untuk bulan berjalan dan memakai transaksi pengeluaran yang tercatat.'
-      : 'Hanya admin keluarga yang bisa menambah atau mengubah budget.'
+    $('form-note').textContent = guest
+      ? 'Mode tamu: anggaran disimpan lokal di perangkat ini.'
+      : canManage
+        ? 'Budget berlaku untuk bulan berjalan dan memakai transaksi pengeluaran yang tercatat.'
+        : 'Hanya admin keluarga yang bisa menambah atau mengubah budget.'
   }
 
   function renderSummary(totals) {
@@ -107,7 +111,13 @@ if (ctx) {
     setStatus()
     setLoading(true)
     try {
-      overview = await getBudgetOverview(sb, familyId, user.id)
+      if (guest) {
+        const ok = await guestAvailable()
+        if (!ok) throw new Error('IndexedDB tidak tersedia di perangkat ini.')
+        overview = await getGuestBudgetOverview()
+      } else {
+        overview = await getBudgetOverview(sb, familyId, user.id)
+      }
       fillOptions(overview)
       applyPermissions(overview.canManage)
       renderSummary(overview.totals)
@@ -125,10 +135,17 @@ if (ctx) {
   async function archive(budget) {
     if (!overview?.canManage) return
     if (!confirm(`Arsipkan budget "${budget.name}"?`)) return
-    const { error } = await sb.from('budgets').update({ is_archived: true }).eq('id', budget.id)
-    if (error) return setError(error.message)
-    await load()
-    setStatus('Budget diarsipkan.')
+    try {
+      if (guest) await archiveGuestBudget(budget.id)
+      else {
+        const { error } = await sb.from('budgets').update({ is_archived: true }).eq('id', budget.id)
+        if (error) throw error
+      }
+      await load()
+      setStatus('Budget diarsipkan.')
+    } catch (e) {
+      setError(e.message)
+    }
   }
 
   form.addEventListener('submit', async (e) => {
@@ -148,45 +165,61 @@ if (ctx) {
       : ''
     const name = `${category?.name ?? 'Semua kategori'}${memberLabel} · ${overview.range.label}`
 
-    let query = sb.from('budgets').select('id')
-      .eq('family_id', familyId)
-      .eq('period_type', 'monthly')
-      .eq('start_date', overview.range.start)
-      .eq('end_date', overview.range.end)
-      .eq('is_archived', false)
-    if (categoryId) query = query.eq('category_id', categoryId)
-    else query = query.is('category_id', null)
-    if (memberId) query = query.eq('member_id', memberId)
-    else query = query.is('member_id', null)
+    try {
+      if (guest) {
+        await saveGuestBudget({
+          name,
+          category_id: categoryId,
+          member_id: memberId,
+          amount_limit: amountLimit,
+          alert_threshold: alertThreshold,
+          start_date: overview.range.start,
+          end_date: overview.range.end
+        })
+      } else {
+        let query = sb.from('budgets').select('id')
+          .eq('family_id', familyId)
+          .eq('period_type', 'monthly')
+          .eq('start_date', overview.range.start)
+          .eq('end_date', overview.range.end)
+          .eq('is_archived', false)
+        if (categoryId) query = query.eq('category_id', categoryId)
+        else query = query.is('category_id', null)
+        if (memberId) query = query.eq('member_id', memberId)
+        else query = query.is('member_id', null)
 
-    const find = await query.limit(1)
-    if (find.error) return setError(find.error.message)
+        const find = await query.limit(1)
+        if (find.error) throw find.error
 
-    const payload = {
-      name,
-      amount_limit: amountLimit,
-      alert_threshold: alertThreshold,
-      is_archived: false
+        const payload = {
+          name,
+          amount_limit: amountLimit,
+          alert_threshold: alertThreshold,
+          is_archived: false
+        }
+        const existing = find.data?.[0]
+        const result = existing
+          ? await sb.from('budgets').update(payload).eq('id', existing.id)
+          : await sb.from('budgets').insert({
+            ...payload,
+            family_id: familyId,
+            category_id: categoryId,
+            member_id: memberId,
+            period_type: 'monthly',
+            start_date: overview.range.start,
+            end_date: overview.range.end,
+            created_by: user.id
+          })
+        if (result.error) throw result.error
+      }
+
+      form.reset()
+      $('budget-alert').value = '80'
+      await load()
+      setStatus('Budget tersimpan.')
+    } catch (err) {
+      setError(err.message)
     }
-    const existing = find.data?.[0]
-    const result = existing
-      ? await sb.from('budgets').update(payload).eq('id', existing.id)
-      : await sb.from('budgets').insert({
-        ...payload,
-        family_id: familyId,
-        category_id: categoryId,
-        member_id: memberId,
-        period_type: 'monthly',
-        start_date: overview.range.start,
-        end_date: overview.range.end,
-        created_by: user.id
-      })
-    if (result.error) return setError(result.error.message)
-
-    form.reset()
-    $('budget-alert').value = '80'
-    await load()
-    setStatus('Budget tersimpan.')
   })
 
   $('budget-alert').value = '80'

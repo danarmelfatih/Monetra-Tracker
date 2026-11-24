@@ -1,15 +1,17 @@
 import { afterEach, expect, test } from 'bun:test'
-import { hasStoredSession, homeRedirectFor, isMobileDevice, shouldUseGuestDashboard } from '../public/js/lib/guest.js'
+import { clearGuestMode, guestHref, hasStoredSession, homeRedirectFor, isGuestMode, isMobileDevice, shouldUseGuestDashboard } from '../public/js/lib/guest.js'
 
 const originalWindow = globalThis.window
 const authStore = { 'sb-project-auth-token': JSON.stringify({ access_token: 'token' }) }
 
 function mockStorage(entries = {}) {
-  const keys = Object.keys(entries)
+  const map = new Map(Object.entries(entries))
   return {
-    length: keys.length,
-    key: (index) => keys[index] ?? null,
-    getItem: (key) => entries[key] ?? null
+    get length() { return map.size },
+    key: (index) => [...map.keys()][index] ?? null,
+    getItem: (key) => map.has(key) ? map.get(key) : null,
+    setItem: (key, value) => { map.set(key, String(value)) },
+    removeItem: (key) => { map.delete(key) }
   }
 }
 
@@ -43,8 +45,21 @@ test('homeRedirectFor mengikuti status login dan perangkat', () => {
   expect(homeRedirectFor({ userAgent: 'Desktop', width: 1440, storage: mockStorage(authStore) })).toBe('/dashboard')
 })
 
-test('shouldUseGuestDashboard mensyaratkan guest dan tanpa sesi', () => {
-  expect(shouldUseGuestDashboard({ search: '?guest=1', storage: mockStorage() })).toBe(true)
-  expect(shouldUseGuestDashboard({ search: '?guest=1', storage: mockStorage(authStore) })).toBe(false)
-  expect(shouldUseGuestDashboard({ search: '', storage: mockStorage() })).toBe(false)
+test('isGuestMode mempertahankan flag lokal dan dibersihkan saat sesi ada', () => {
+  const store = mockStorage()
+  expect(isGuestMode({ search: '?guest=1', storage: store })).toBe(true)
+  expect(isGuestMode({ search: '', storage: store })).toBe(true)
+  clearGuestMode(store)
+  expect(isGuestMode({ search: '', storage: store })).toBe(false)
+  expect(isGuestMode({ search: '?guest=1', storage: mockStorage(authStore) })).toBe(false)
+})
+
+test('guestHref menambah guest=1 hanya saat guest mode aktif', () => {
+  const originalLocation = globalThis.location
+  globalThis.location = { search: '?guest=1' }
+  expect(guestHref('/transactions?new=1')).toBe('/transactions?new=1&guest=1')
+  globalThis.location = { search: '' }
+  expect(guestHref('/transactions?new=1')).toBe('/transactions?new=1')
+  if (originalLocation === undefined) delete globalThis.location
+  else globalThis.location = originalLocation
 })

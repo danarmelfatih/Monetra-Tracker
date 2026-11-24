@@ -105,7 +105,7 @@ test('aset kritis dan manifest PWA tersaji', async () => {
     ['/js/lib/report.js', 'buildReport'],
     ['/js/lib/wallet-summary.js', 'splitWalletBalances'],
     ['/js/pages/dashboard.js', 'initPrivacyToggle'],
-    ['/js/pages/dashboard.js', 'renderGuestDashboard'],
+    ['/js/pages/dashboard.js', 'guestAvailable'],
     ['/js/pages/savings.js', 'savings-list'],
     ['/js/pages/budgets.js', 'budget-form'],
     ['/js/pages/reports.js', 'report-type'],
@@ -115,7 +115,11 @@ test('aset kritis dan manifest PWA tersaji', async () => {
     ['/js/components/layout.js', 'stripNullText'],
     ['/js/lib/icons.js', 'export function icon'],
     ['/js/categories.js', './lib/app.js'],
-    ['/service-worker.js', 'monetra-cache-v18'],
+    ['/js/lib/guest-db.js', 'openGuestDb'],
+    ['/js/lib/guest-seed.js', 'defaultGuestCategories'],
+    ['/js/lib/guest-store.js', 'saveGuestTransaction'],
+    ['/service-worker.js', 'monetra-cache-v19'],
+    ['/service-worker.js', '/js/lib/guest-store.js'],
     ['/manifest.json', 'Monetra Tracker']
   ]
   for (const [path, marker] of assets) {

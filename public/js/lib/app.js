@@ -1,8 +1,21 @@
 import { getSb } from './supabase.js'
 import { requireUser, getActiveFamilyId } from './auth.js'
 import { renderLayout } from '../components/layout.js'
+import { GUEST_FAMILY_ID, GUEST_USER, isGuestMode } from './guest.js'
 
 export async function initPage(activePath, options = {}) {
+  if (options.guest || isGuestMode({ search: location.search })) {
+    await renderLayout({
+      user: GUEST_USER,
+      familyName: 'Mode Tamu',
+      activePath,
+      familyId: GUEST_FAMILY_ID,
+      greeting: options.greeting === true,
+      guest: true
+    })
+    return { user: GUEST_USER, familyId: GUEST_FAMILY_ID, guest: true }
+  }
+
   const user = await requireUser()
   if (!user) return null
 
@@ -20,5 +33,5 @@ export async function initPage(activePath, options = {}) {
   }
 
   await renderLayout({ user, familyName: family.name, activePath, familyId, greeting: options.greeting === true })
-  return { user, familyId }
+  return { user, familyId, guest: false }
 }

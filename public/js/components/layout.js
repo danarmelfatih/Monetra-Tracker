@@ -6,6 +6,7 @@ import { getBudgetOverview } from '../lib/budget.js'
 import { getNotifications, markNotificationRead, markNotificationsRead, deleteNotification } from '../lib/notifications.js'
 import { applyTheme, readTheme, toggleTheme } from '../lib/theme.js'
 import { formatRupiah } from '../lib/format.js'
+import { guestHref } from '../lib/guest.js'
 
 const NAV = [
   { href: '/dashboard', label: 'Dashboard', icon: 'home' },
@@ -56,9 +57,10 @@ export async function renderLayout({ user, familyName, activePath, familyId, gre
   const userEmail = guest ? '' : cleanText(user.email, '')
   const initial = guest ? 'T' : userName.charAt(0).toUpperCase()
 
+  const linkFor = (href) => (guest ? guestHref(href) : href)
   const isActive = (href) => href === activePath
   const sidebarLink = (n) => el('a', {
-    href: n.href,
+    href: linkFor(n.href),
     class: isActive(n.href) ? 'active' : '',
     'aria-current': isActive(n.href) ? 'page' : null
   }, icon(n.icon), el('span', {}, n.label))
@@ -68,7 +70,7 @@ export async function renderLayout({ user, familyName, activePath, familyId, gre
       el('span', { class: 'sidebar-avatar', 'aria-hidden': 'true' }, initial),
       el('div', { class: 'sidebar-user-copy' },
         el('span', { class: 'sidebar-user-name' }, userName),
-        el('span', { class: 'sidebar-user-family' }, 'Data tidak ditampilkan')),
+        el('span', { class: 'sidebar-user-family' }, 'Data lokal di perangkat')),
       el('a', { class: 'btn btn-ghost sidebar-logout', href: '/login' }, 'Masuk'))
     : el('div', { class: 'sidebar-user' },
       el('span', { class: 'sidebar-avatar', 'aria-hidden': 'true' }, initial),
@@ -79,17 +81,17 @@ export async function renderLayout({ user, familyName, activePath, familyId, gre
 
   document.getElementById('sidebar')
     .replaceChildren(
-      el('a', { class: 'brand', href: '/dashboard' },
-        el('span', { class: 'brand-mark', 'aria-hidden': 'true' }, 'M'),
-        el('span', {}, 'Monetra Tracker')),
-      el('div', { class: 'nav-label' }, 'MENU UTAMA'),
+      el('a', { class: 'sidebar-brand', href: linkFor('/dashboard'), 'aria-label': 'Monetra Tracker' },
+        el('span', { class: 'brand-mark' }, 'M'),
+        el('span', { class: 'sidebar-brand-name' }, 'Monetra')),
+      el('div', { class: 'sidebar-section' }, 'MENU UTAMA'),
       ...NAV.map(sidebarLink),
       sidebarUser
     )
 
   const moreActive = MORE_LINKS.some((n) => isActive(n.href))
   const tabLink = (n, className = '', attrs = {}) => el('a', {
-    href: n.href,
+    href: linkFor(n.href),
     class: `tab-button ${className}${isActive(n.href) ? ' active' : ''}`.trim(),
     'aria-current': isActive(n.href) ? 'page' : null,
     ...attrs
@@ -97,7 +99,7 @@ export async function renderLayout({ user, familyName, activePath, familyId, gre
 
   const morePanel = el('div', { class: 'more-sheet', id: 'more-sheet', hidden: true },
     el('div', { class: 'more-sheet-head' }, el('strong', {}, 'Menu lainnya')),
-    ...MORE_LINKS.map((n) => el('a', { href: n.href }, icon(n.icon), el('span', {}, n.label))))
+    ...MORE_LINKS.map((n) => el('a', { href: linkFor(n.href) }, icon(n.icon), el('span', {}, n.label))))
 
   const moreButton = el('button', {
     class: `tab-button${moreActive ? ' active' : ''}`,
@@ -294,7 +296,7 @@ export async function renderLayout({ user, familyName, activePath, familyId, gre
     notificationItems = notificationItems.filter((n) => n.id !== item.id)
     renderNotifications()
     updateBadge()
-    if (item.href) location.assign(item.href)
+    if (item.href) location.assign(linkFor(item.href))
   }
 
   const renderNotifications = () => {
@@ -304,10 +306,11 @@ export async function renderLayout({ user, familyName, activePath, familyId, gre
       return
     }
     notificationList.replaceChildren(...items.map((item) => {
+      const href = item.href ? linkFor(item.href) : null
       const content = el('div', { class: 'notification-copy' },
-        item.href
+        href
           ? el('a', {
-            href: item.href,
+            href,
             onclick: (event) => {
               event.preventDefault()
               openNotification(item)
@@ -392,8 +395,8 @@ export async function renderLayout({ user, familyName, activePath, familyId, gre
 
   const headerTitle = guest
     ? el('div', { class: 'header-title' },
-      el('span', { class: 'header-greeting' }, 'Mode Tamu'),
-      el('h1', {}, 'Dashboard'))
+      el('span', { class: 'header-greeting' }, 'Mode Tamu · Data lokal'),
+      el('h1', {}, activePath === '/dashboard' ? 'Dashboard' : NAV.find((n) => n.href === activePath)?.label || 'Monetra'))
     : greeting
       ? el('div', { class: 'header-title' },
         el('span', { class: 'header-greeting' }, greetingFor(userName)),
@@ -409,9 +412,17 @@ export async function renderLayout({ user, familyName, activePath, familyId, gre
       guest
         ? el('a', { class: 'btn btn-ghost', href: '/login' }, 'Masuk')
         : el('div', { class: 'notification-wrap' }, notificationButton, notificationPanel),
-      guest ? null : el('div', { class: 'header-profile' }, profileButton, profilePanel))
+      guest ? el('span', { class: 'pill', 'aria-label': 'Mode tamu aktif' }, 'Tamu') : el('div', { class: 'header-profile' }, profileButton, profilePanel))
   )
   stripNullText(header)
+
+  if (guest) {
+    document.querySelectorAll('a[href^="/"]').forEach((a) => {
+      const href = a.getAttribute('href')
+      if (!href || href.startsWith('/login') || href.startsWith('/onboarding')) return
+      a.setAttribute('href', linkFor(href))
+    })
+  }
 
   if (!guest) {
     try {

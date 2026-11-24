@@ -2,14 +2,24 @@ import { getSb } from '../lib/supabase.js'
 import { initPage } from '../lib/app.js'
 import { el } from '../lib/dom.js'
 import { formatRupiah } from '../lib/format.js'
+import {
+  guestAvailable,
+  guestMember,
+  listGuestCategories,
+  listGuestTransactions,
+  listGuestWallets,
+  saveGuestTransaction,
+  deleteGuestTransaction
+} from '../lib/guest-store.js'
 
 const ctx = await initPage('/transactions')
 
 if (ctx) {
-  const sb = await getSb()
-  const { user, familyId } = ctx
   const $ = (id) => document.getElementById(id)
   const form = $('tx-form')
+  const guest = ctx.guest === true
+  const sb = guest ? null : await getSb()
+  const { user, familyId } = ctx
   let editingId = null
   let categories = []
   let wallets = []
@@ -20,19 +30,28 @@ if (ctx) {
   const showFormError = (msg = '') => { $('form-error').textContent = msg }
 
   async function loadRefs() {
-    const [c, w, m] = await Promise.all([
-      sb.from('categories').select('id, name, type').eq('family_id', familyId).eq('is_archived', false).order('name'),
-      sb.from('wallets').select('id, name').eq('family_id', familyId).eq('is_archived', false).order('name'),
-      sb.from('family_members')
-        .select('user_id, role, profiles(full_name, email)')
-        .eq('family_id', familyId).eq('status', 'active')
-    ])
-    const err = c.error || w.error || m.error
-    if (err) throw err
-    categories = c.data
-    wallets = w.data
-    members = m.data
-    myRole = members.find((x) => x.user_id === user.id)?.role ?? 'member'
+    if (guest) {
+      const ok = await guestAvailable()
+      if (!ok) throw new Error('IndexedDB tidak tersedia di perangkat ini.')
+      categories = await listGuestCategories()
+      wallets = (await listGuestWallets()).filter((w) => !w.is_archived)
+      members = [guestMember()]
+      myRole = 'owner'
+    } else {
+      const [c, w, m] = await Promise.all([
+        sb.from('categories').select('id, name, type').eq('family_id', familyId).eq('is_archived', false).order('name'),
+        sb.from('wallets').select('id, name').eq('family_id', familyId).eq('is_archived', false).order('name'),
+        sb.from('family_members')
+          .select('user_id, role, profiles(full_name, email)')
+          .eq('family_id', familyId).eq('status', 'active')
+      ])
+      const err = c.error || w.error || m.error
+      if (err) throw err
+      categories = c.data
+      wallets = w.data
+      members = m.data
+      myRole = members.find((x) => x.user_id === user.id)?.role ?? 'member'
+    }
 
     $('filter-category').replaceChildren(
       el('option', { value: '' }, 'Semua'),
@@ -41,7 +60,7 @@ if (ctx) {
       el('option', { value: '' }, 'Semua'),
       ...wallets.map((w) => el('option', { value: w.id }, w.name)))
     $('filter-member').replaceChildren(
-      el('option', { value: '' }, 'Semua'),
+      el('option', { value: '' }, guest ? 'Tamu' : 'Semua'),
       ...members.map((m) => el('option', { value: m.user_id },
         m.profiles?.full_name || m.profiles?.email || 'Anggota')))
   }
@@ -58,27 +77,40 @@ if (ctx) {
   }
 
   async function load() {
-    let query = sb.from('transactions')
-      .select('id, title, amount, type, transaction_date, note, visibility, created_by, profiles(full_name, email), categories(name), wallets(name)')
-      .eq('family_id', familyId)
-      .is('deleted_at', null)
-      .order('transaction_date', { ascending: false })
-      .order('created_at', { ascending: false })
-      .limit(100)
+    let data = []
+    if (guest) {
+      data = await listGuestTransactions({
+        search: $('filter-search').value,
+        type: $('filter-type').value,
+        from: $('filter-from').value,
+        to: $('filter-to').value,
+        categoryId: $('filter-category').value,
+        walletId: $('filter-wallet').value,
+        memberId: $('filter-member').value
+      })
+    } else {
+      let query = sb.from('transactions')
+        .select('id, title, amount, type, transaction_date, note, visibility, created_by, category_id, wallet_id, profiles(full_name, email), categories(name), wallets(name)')
+        .eq('family_id', familyId)
+        .is('deleted_at', null)
+        .order('transaction_date', { ascending: false })
+        .order('created_at', { ascending: false })
+        .limit(100)
 
-    const search = $('filter-search').value.trim().replace(/[,%()]/g, ' ')
-    if (search) query = query.or(`title.ilike.%${search}%,note.ilike.%${search}%`)
-    if ($('filter-type').value) query = query.eq('type', $('filter-type').value)
-    if ($('filter-from').value) query = query.gte('transaction_date', $('filter-from').value)
-    if ($('filter-to').value) query = query.lte('transaction_date', $('filter-to').value)
-    if ($('filter-category').value) query = query.eq('category_id', $('filter-category').value)
-    if ($('filter-wallet').value) query = query.eq('wallet_id', $('filter-wallet').value)
-    if ($('filter-member').value) query = query.eq('created_by', $('filter-member').value)
+      const search = $('filter-search').value.trim().replace(/[,%()]/g, ' ')
+      if (search) query = query.or(`title.ilike.%${search}%,note.ilike.%${search}%`)
+      if ($('filter-type').value) query = query.eq('type', $('filter-type').value)
+      if ($('filter-from').value) query = query.gte('transaction_date', $('filter-from').value)
+      if ($('filter-to').value) query = query.lte('transaction_date', $('filter-to').value)
+      if ($('filter-category').value) query = query.eq('category_id', $('filter-category').value)
+      if ($('filter-wallet').value) query = query.eq('wallet_id', $('filter-wallet').value)
+      if ($('filter-member').value) query = query.eq('created_by', $('filter-member').value)
 
-    const { data, error } = await query
-    if (error) return showError(error.message)
+      const res = await query
+      if (res.error) return showError(res.error.message)
+      data = res.data
+    }
     showError()
-
     $('tx-list').replaceChildren(...data.map(row))
     $('empty').hidden = data.length > 0
   }
@@ -88,7 +120,7 @@ if (ctx) {
     const category = t.categories?.name ?? '-'
     const wallet = t.wallets?.name ?? '-'
     const typeLabel = t.type === 'income' ? 'Pemasukan' : 'Pengeluaran'
-    const canEdit = t.created_by === user.id || ['owner', 'admin'].includes(myRole)
+    const canEdit = guest || t.created_by === user.id || ['owner', 'admin'].includes(myRole)
     return el('div', { class: 'cat-row tx-row' },
       el('div', { class: 'tx-main' },
         el('div', { class: 'tx-title' }, t.title),
@@ -129,10 +161,17 @@ if (ctx) {
 
   async function remove(t) {
     if (!confirm(`Hapus transaksi "${t.title}"?`)) return
-    const { error } = await sb.from('transactions')
-      .update({ deleted_at: new Date().toISOString() }).eq('id', t.id)
-    if (error) return showError(error.message)
-    await load()
+    try {
+      if (guest) await deleteGuestTransaction(t.id)
+      else {
+        const { error } = await sb.from('transactions')
+          .update({ deleted_at: new Date().toISOString() }).eq('id', t.id)
+        if (error) throw error
+      }
+      await load()
+    } catch (e) {
+      showError(e.message)
+    }
   }
 
   $('tx-type').addEventListener('change', fillCategoryOptions)
@@ -152,20 +191,25 @@ if (ctx) {
       note: $('tx-note').value.trim() || null,
       visibility: $('tx-visibility').value
     }
-    let error
-    if (editingId) {
-      ({ error } = await sb.from('transactions').update(payload).eq('id', editingId))
-    } else {
-      ({ error } = await sb.from('transactions').insert({
-        ...payload,
-        family_id: familyId,
-        created_by: user.id,
-        client_op_id: crypto.randomUUID()
-      }))
+    try {
+      if (guest) await saveGuestTransaction(payload, editingId)
+      else if (editingId) {
+        const { error } = await sb.from('transactions').update(payload).eq('id', editingId)
+        if (error) throw error
+      } else {
+        const { error } = await sb.from('transactions').insert({
+          ...payload,
+          family_id: familyId,
+          created_by: user.id,
+          client_op_id: crypto.randomUUID()
+        })
+        if (error) throw error
+      }
+      closeForm()
+      await load()
+    } catch (err) {
+      showFormError(err.message)
     }
-    if (error) return showFormError(error.message)
-    closeForm()
-    await load()
   })
 
   $('filter-form').addEventListener('submit', async (e) => {

@@ -15,7 +15,10 @@
         }
       }
       if (signedIn) location.replace('/dashboard')
-      else if (mobile) location.replace('/dashboard?guest=1')
+      else if (mobile) {
+        localStorage.setItem('monetra-guest-mode', '1')
+        location.replace('/dashboard?guest=1')
+      }
     } catch {}
   </script>
   <meta name="description" content="Monetra Tracker membantu keluarga mencatat pemasukan, pengeluaran, anggaran, dan laporan keuangan dalam satu tempat.">

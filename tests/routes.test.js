@@ -118,7 +118,7 @@ test('aset kritis dan manifest PWA tersaji', async () => {
     ['/js/lib/guest-db.js', 'openGuestDb'],
     ['/js/lib/guest-seed.js', 'defaultGuestCategories'],
     ['/js/lib/guest-store.js', 'saveGuestTransaction'],
-    ['/service-worker.js', 'monetra-cache-v19'],
+    ['/service-worker.js', 'monetra-cache-v20'],
     ['/service-worker.js', '/js/lib/guest-store.js'],
     ['/manifest.json', 'Monetra Tracker']
   ]

@@ -94,14 +94,20 @@ function emptyChart(text) {
 }
 
 function renderBudget(budgets) {
-  const list = document.getElementById('budget-list')
+  const list = document.getElementById('budget-detail') || document.getElementById('budget-list')
   const empty = document.getElementById('budget-empty')
+  if (!list) return
   list.replaceChildren()
   if (!budgets.length) {
-    empty.hidden = false
+    list.hidden = true
+    if (empty) {
+      empty.textContent = 'Belum ada budget aktif.'
+      empty.hidden = false
+    }
     return
   }
-  empty.hidden = true
+  list.hidden = false
+  if (empty) empty.hidden = true
   budgets.slice(0, 3).forEach((b) => {
     const percent = Math.min(100, Math.max(0, b.percent))
     const fill = el('div', { class: `budget-fill ${b.status}` })
@@ -183,7 +189,8 @@ if (ctx) {
       }
       $('income').textContent = formatRupiah(income)
       $('expense').textContent = formatRupiah(expense)
-      $('flow-chart').replaceChildren(flowChart(income, expense))
+      const flowChartNode = $('flow-chart')
+      if (flowChartNode) flowChartNode.replaceChildren(flowChart(income, expense))
 
       const budgets = budgetOverview.budgets ?? []
       const totalLimit = budgetOverview.totals?.limit ?? 0
@@ -193,7 +200,8 @@ if (ctx) {
       $('budget-limit').textContent = formatRupiah(totalLimit)
       $('budget-spent').textContent = formatRupiah(totalSpent)
       renderBudget(budgets)
-      $('category-chart').replaceChildren(budgets.length ? emptyChart('Ringkasan kategori tersedia di halaman Anggaran.') : emptyChart(ctx.guest ? 'Buat anggaran untuk melihat ringkasan.' : 'Belum ada budget aktif.'))
+      const categoryChart = $('category-chart')
+      if (categoryChart) categoryChart.replaceChildren(budgets.length ? emptyChart('Ringkasan kategori tersedia di halaman Anggaran.') : emptyChart(ctx.guest ? 'Buat anggaran untuk melihat ringkasan.' : 'Belum ada budget aktif.'))
 
       const row = (t) => el('div', { class: 'tx-row' },
         el('div', { class: 'tx-main' },
@@ -207,8 +215,10 @@ if (ctx) {
         el('td', {}, t.transaction_date),
         el('td', { class: `tx-amount ${t.type}` }, `${t.type === 'income' ? '+' : '-'}${formatRupiah(t.amount)}`))
 
-      $('recent').replaceChildren(...recent.map(row))
-      $('recent-table').replaceChildren(...recent.map(tableRow))
+      const recentList = $('recent')
+      const recentTable = $('recent-table')
+      if (recentList) recentList.replaceChildren(...recent.map(row))
+      if (recentTable) recentTable.replaceChildren(...recent.map(tableRow))
       $('recent-empty').hidden = recent.length > 0
       $('empty-action').hidden = recent.length > 0
       $('loading').hidden = true

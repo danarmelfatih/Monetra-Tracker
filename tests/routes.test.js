@@ -62,13 +62,33 @@ test('halaman utama aplikasi tersaji dengan konten yang diharapkan', async () =>
     ['/savings', 'id="savings-total" data-amount'],
     ['/savings', 'id="btn-hide-amounts"'],
     ['/categories', 'id="cat-form"'],
-    ['/login', 'Lanjutkan dengan Google']
+    ['/login', 'login-brand'],
+    ['/login', 'Selamat Datang Kembali'],
+    ['/login', 'Masuk untuk melanjutkan pengelolaan keuangan Anda.'],
+    ['/login', 'Lanjutkan dengan Google'],
+    ['/login', 'Kembali ke Beranda']
   ]
   for (const [path, marker] of pages) {
     const response = await fetch(`${base}${path}`)
     expect(response.status).toBe(200)
     expect(await response.text()).toContain(marker)
   }
+})
+
+test('halaman login tidak memuat hero dan ringkasan promosi', async () => {
+  const response = await fetch(`${base}/login`)
+  const html = await response.text()
+  const promo = [
+    'Kelola Keuangan Keluarga dengan Lebih Mudah.',
+    'Satu tempat untuk mencatat, memantau, dan merencanakan keuangan bersama keluarga.',
+    'Ringkasan keluarga',
+    'Aktivitas 6 bulan',
+    'Rp 24.750.000',
+    'auth-preview',
+    'preview-metrics'
+  ]
+  expect(response.status).toBe(200)
+  for (const marker of promo) expect(html).not.toContain(marker)
 })
 
 test('aset kritis dan manifest PWA tersaji', async () => {
@@ -79,6 +99,7 @@ test('aset kritis dan manifest PWA tersaji', async () => {
     ['/js/lib/theme.js', 'toggleTheme'],
     ['/js/lib/privacy.js', 'toggleHideAmounts'],
     ['/js/components/privacy-toggle.js', 'initPrivacyToggle'],
+    ['/css/marketing.css', 'login-brand'],
     ['/css/layout.css', "data-hide-amounts='true'"],
     ['/css/layout.css', 'Rp •••••••'],
     ['/js/lib/report.js', 'buildReport'],
@@ -94,7 +115,7 @@ test('aset kritis dan manifest PWA tersaji', async () => {
     ['/js/components/layout.js', 'stripNullText'],
     ['/js/lib/icons.js', 'export function icon'],
     ['/js/categories.js', './lib/app.js'],
-    ['/service-worker.js', 'monetra-cache-v17'],
+    ['/service-worker.js', 'monetra-cache-v18'],
     ['/manifest.json', 'Monetra Tracker']
   ]
   for (const [path, marker] of assets) {

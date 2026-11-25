@@ -255,20 +255,25 @@ if (ctx) {
         if ($('filter-member').value) query = query.eq('created_by', $('filter-member').value)
         if ($('filter-wallet').value) query = query.eq('wallet_id', $('filter-wallet').value)
 
+        let incomeLedgerQuery = sb.from('family_income_report_entries')
+          .select('source_id, source_kind, family_id, created_by, entry_date, amount, title, category_id, note, destination_wallet_id, destination_scope')
+          .eq('family_id', familyId)
+          .eq('source_kind', 'savings_ledger')
+          .gte('entry_date', start)
+          .lte('entry_date', end)
+          .order('entry_date', { ascending: false })
+          .limit(1000)
+        if ($('filter-category').value) incomeLedgerQuery = incomeLedgerQuery.eq('category_id', $('filter-category').value)
+        if ($('filter-member').value) incomeLedgerQuery = incomeLedgerQuery.eq('created_by', $('filter-member').value)
+        if ($('filter-wallet').value) incomeLedgerQuery = incomeLedgerQuery.eq('destination_wallet_id', $('filter-wallet').value)
+
         let [txRes, walletRes, mainBalRes, savingsBalRes, legacyBalRes, incomeLedgerRes] = await Promise.all([
           query,
           sb.from('wallets').select('id, name, type, scope').eq('family_id', familyId).order('name'),
           sb.from('family_main_balances').select('wallet_id, balance').eq('family_id', familyId),
           sb.from('family_savings_balances').select('wallet_id, balance').eq('family_id', familyId),
           sb.from('wallet_balances').select('wallet_id, balance').eq('family_id', familyId),
-          sb.from('family_income_report_entries')
-            .select('source_id, source_kind, family_id, created_by, entry_date, amount, title, category_id, note, destination_wallet_id, destination_scope')
-            .eq('family_id', familyId)
-            .eq('source_kind', 'savings_ledger')
-            .gte('entry_date', start)
-            .lte('entry_date', end)
-            .order('entry_date', { ascending: false })
-            .limit(1000)
+          incomeLedgerQuery
         ])
         const schemaErr = [txRes.error, walletRes.error, mainBalRes.error, savingsBalRes.error, legacyBalRes.error, incomeLedgerRes.error].find((e) => e && isMissingFamilyFinanceSchema(e))
         if (schemaErr) {
@@ -338,10 +343,6 @@ if (ctx) {
             profiles: member?.profiles ?? { full_name: 'Anggota', email: '' }
           }
         })
-        if ($('filter-category').value) ledgerRows = ledgerRows.filter((r) => r.category_id === $('filter-category').value)
-        if ($('filter-member').value) ledgerRows = ledgerRows.filter((r) => r.created_by === $('filter-member').value)
-        if ($('filter-wallet').value) ledgerRows = ledgerRows.filter((r) => r.wallet_id === $('filter-wallet').value)
-
         currentRange = { start, end }
         current = buildReport({
           transactions: [...(txRes.data ?? []), ...ledgerRows],

@@ -43,7 +43,7 @@ if (ctx) {
     const savings = wallets.filter((w) => w.type === 'savings')
     $('family-main').replaceChildren(el('p', { class: 'muted' }, 'Mode kompatibilitas: skema Dompet Keluarga belum aktif di database. Menampilkan dompet legacy.'))
     $('family-savings').replaceChildren(el('p', { class: 'muted' }, `Total tabungan legacy: ${formatRupiah(summary.savingsTotal)}`))
-    const cards = [...ready, ...savings].map((w) => walletCard(w, { badge: w.type === 'savings' ? 'Tabungan' : 'Dompet', note: 'Mode kompatibilitas database.' }))
+    const cards = [...ready, ...savings].map((w) => walletCard(w, { badge: w.type === 'savings' ? 'Tabungan Lama' : 'Dompet', note: 'Read-only selama transisi. Data legacy tidak digabung otomatis.' }))
     $('legacy-list').replaceChildren(...cards)
     $('legacy-empty').hidden = cards.length > 0
     $('empty').hidden = cards.length > 0

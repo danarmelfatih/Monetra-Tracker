@@ -10,13 +10,10 @@ import {
   buildGuestReportData,
   listGuestCategories,
   listGuestSavingsLedger,
+  guestWalletBalances,
   guestDepositInternal,
   guestDepositExternal,
   guestWithdrawInternal,
-  listGuestWallets,
-  saveGuestWallet,
-  archiveGuestWallet,
-  guestWalletBalances
 } from '../lib/guest-store.js'
 
 const ctx = await initPage('/savings')
@@ -32,7 +29,6 @@ if (ctx) {
   let mainBalance = 0
   let savingsBalance = 0
   let legacyMode = false
-  let legacyEditingId = null
 
   const showError = (message = '') => {
     $('error').textContent = message ? `Gagal memuat tabungan: ${message}. Coba muat ulang halaman.` : ''
@@ -133,31 +129,32 @@ if (ctx) {
   function legacyCard(wallet, balanceMap) {
     return el('article', { class: 'panel wallet-card' },
       el('div', { class: 'w-name' }, wallet.name),
-      el('div', { class: 'w-type' }, 'Tabungan'),
+      el('div', { class: 'w-type' }, 'Tabungan Lama'),
       el('div', { class: 'w-balance', 'data-amount': true }, formatRupiah(balanceMap.get(wallet.id) ?? wallet.initial_balance)),
-      el('div', { class: 'row-actions' },
-        el('button', { class: 'btn-link', type: 'button', onclick: () => openLegacyForm(wallet) }, 'Edit'),
-        el('button', { class: 'btn-link', type: 'button', onclick: () => archiveLegacy(wallet) }, 'Arsipkan')))
+      el('div', { class: 'muted' }, 'Read-only selama transisi. Data lama tidak digabung otomatis.'))
   }
 
   function setFormMode() {
     const ledger = $('ledger-fields')
     const legacy = $('legacy-fields')
     if (ledger) ledger.hidden = legacyMode
-    if (legacy) legacy.hidden = !legacyMode
+    if (legacy) legacy.hidden = true
     const amount = $('savings-amount')
     const date = $('savings-date')
     const name = $('savings-name')
     const bal = $('savings-balance')
     if (amount) amount.required = !legacyMode
     if (date) date.required = !legacyMode
-    if (name) name.required = legacyMode
-    if (bal) bal.required = legacyMode
+    if (name) name.required = false
+    if (bal) bal.required = false
   }
 
   async function loadLegacy() {
     legacyMode = true
     setFormMode()
+    const addBtn = $('btn-add')
+    if (addBtn) addBtn.hidden = true
+    form.hidden = true
     let wallets = []
     let balances = []
     if (guest) {
@@ -179,10 +176,10 @@ if (ctx) {
     $('savings-total').textContent = formatRupiah(summary.savingsTotal)
     $('savings-count').textContent = String(wallets.length)
     const hint = $('main-balance-hint')
-    if (hint) hint.textContent = 'Mode kompatibilitas: skema family finance belum aktif di database.'
+    if (hint) hint.textContent = 'Mode kompatibilitas: skema family finance belum aktif di database. Tabungan legacy ditampilkan read-only.'
     $('savings-list').replaceChildren(...wallets.map((wallet) => legacyCard(wallet, balanceMap)))
     $('savings-empty').hidden = wallets.length > 0
-    $('savings-empty').textContent = 'Belum ada tabungan.'
+    $('savings-empty').textContent = 'Belum ada tabungan legacy.'
   }
 
   async function loadLedger() {
@@ -214,10 +211,13 @@ if (ctx) {
     $('savings-loading').hidden = false
     $('savings-list').replaceChildren()
     $('savings-empty').hidden = true
+    const addBtn = $('btn-add')
+    if (addBtn) addBtn.hidden = false
     try {
       await loadRefs()
       await loadBalances()
       await loadLedger()
+      if (legacyMode && addBtn) addBtn.hidden = true
       $('savings-loading').hidden = true
     } catch (e) {
       $('savings-total').textContent = '-'
@@ -229,7 +229,7 @@ if (ctx) {
 
   function openForm() {
     setFormMode()
-    if (legacyMode) return openLegacyForm()
+    if (legacyMode) return
     form.hidden = false
     showFormError()
     if ($('savings-date') && !$('savings-date').value) $('savings-date').value = new Date().toISOString().slice(0, 10)
@@ -241,34 +241,12 @@ if (ctx) {
   function closeForm() {
     form.hidden = true
     form.reset()
-    legacyEditingId = null
     const wrap = $('category-wrap')
     if (wrap) wrap.hidden = true
     showFormError()
   }
 
-  function openLegacyForm(wallet = null) {
-    legacyEditingId = wallet?.id ?? null
-    setFormMode()
-    if ($('savings-name')) $('savings-name').value = wallet?.name ?? ''
-    if ($('savings-balance')) $('savings-balance').value = wallet?.initial_balance ?? 0
-    form.hidden = false
-    showFormError()
-    const name = $('savings-name')
-    if (name) name.focus()
-  }
 
-  async function archiveLegacy(wallet) {
-    if (!confirm(`Arsipkan tabungan "${wallet.name}"?`)) return
-    try {
-      if (guest) await archiveGuestWallet(wallet.id)
-      else {
-        const { error } = await sb.from('wallets').update({ is_archived: true }).eq('id', wallet.id)
-        if (error) throw error
-      }
-      await load()
-    } catch (e) { showError(e.message) }
-  }
 
   $('btn-add').addEventListener('click', openForm)
   $('btn-cancel').addEventListener('click', closeForm)
@@ -281,21 +259,7 @@ if (ctx) {
     showFormError()
     try {
       if (legacyMode) {
-        const payload = {
-          name: $('savings-name').value.trim(),
-          initial_balance: Number($('savings-balance').value),
-          type: 'savings'
-        }
-        if (guest) await saveGuestWallet(payload, legacyEditingId)
-        else if (legacyEditingId) {
-          const { error } = await sb.from('wallets').update({ name: payload.name, initial_balance: payload.initial_balance }).eq('id', legacyEditingId)
-          if (error) throw error
-        } else {
-          const { error } = await sb.from('wallets').insert({ family_id: familyId, owner_id: user.id, type: 'savings', name: payload.name, initial_balance: payload.initial_balance })
-          if (error) throw error
-        }
-        closeForm()
-        await load()
+        showFormError('Tabungan legacy sedang read-only selama transisi.')
         return
       }
 

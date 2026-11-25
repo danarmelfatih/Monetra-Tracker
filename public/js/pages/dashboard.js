@@ -186,6 +186,8 @@ if (ctx) {
       let txMonth = []
       let recent = []
       let budgetOverview = { budgets: [], totals: { limit: 0, spent: 0, remaining: 0 } }
+      let summaryRes = { wallets: [], balances: [], legacy: false }
+      let incomeLedgerMonth = []
 
       if (ctx.guest) {
         const ok = await guestAvailable()
@@ -204,18 +206,24 @@ if (ctx) {
         monthStart.setHours(0, 0, 0, 0)
         const monthIso = monthStart.toISOString().slice(0, 10)
 
-        let summaryRes = { wallets: [], balances: [], legacy: false }
-        const [summaryResult, txRes, recentRes, budgetRes] = await Promise.all([
+        const [summaryResult, txRes, recentRes, budgetRes, incomeLedgerRes] = await Promise.all([
           loadFamilySummary(sb, ctx.familyId),
           sb.from('transactions').select('amount, type').eq('family_id', ctx.familyId).is('deleted_at', null).gte('transaction_date', monthIso),
           sb.from('transactions')
             .select('id, title, amount, type, transaction_date, wallets(name, type)')
             .eq('family_id', ctx.familyId).is('deleted_at', null)
             .order('transaction_date', { ascending: false }).order('created_at', { ascending: false }).limit(5),
-          getBudgetOverview(sb, ctx.familyId, ctx.user.id).catch(() => ({ budgets: [], totals: { limit: 0, spent: 0, remaining: 0 } }))
+          getBudgetOverview(sb, ctx.familyId, ctx.user.id).catch(() => ({ budgets: [], totals: { limit: 0, spent: 0, remaining: 0 } })),
+          sb.from('family_income_report_entries')
+            .select('amount')
+            .eq('family_id', ctx.familyId)
+            .eq('source_kind', 'savings_ledger')
+            .gte('entry_date', monthIso)
         ])
         const err = txRes.error || recentRes.error
         if (err) throw err
+        if (incomeLedgerRes.error && !isMissingFamilyFinanceSchema(incomeLedgerRes.error)) throw incomeLedgerRes.error
+        if (!incomeLedgerRes.error) incomeLedgerMonth = incomeLedgerRes.data ?? []
         summaryRes = summaryResult
         wallets = summaryRes.wallets
         balances = summaryRes.balances
@@ -230,7 +238,7 @@ if (ctx) {
         const label = $('balance-label')
         if (label) label.textContent = 'Total Saldo (Siap Pakai)'
         $('total').textContent = formatRupiah(legacySummary.saldoTotal)
-        $('balance-note').textContent = `Dari ${legacySummary.saldoCount} dompet siap pakai.`
+        $('balance-note').textContent = `Mode kompatibilitas: skema family finance belum aktif. Dari ${legacySummary.saldoCount} dompet siap pakai.`
         $('savings-count').textContent = String(legacySummary.savingsCount)
         $('savings-total').textContent = formatRupiah(legacySummary.savingsTotal)
       } else {
@@ -251,6 +259,7 @@ if (ctx) {
         if (tx.type === 'income') income += Number(tx.amount)
         else expense += Number(tx.amount)
       }
+      if (!legacyMode) for (const row of incomeLedgerMonth) income += Number(row.amount)
       $('income').textContent = formatRupiah(income)
       $('expense').textContent = formatRupiah(expense)
       const flowChartNode = $('flow-chart')

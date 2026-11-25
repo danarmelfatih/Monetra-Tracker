@@ -4,9 +4,10 @@ import { el } from '../lib/dom.js'
 import { icon } from '../lib/icons.js'
 import { formatRupiah } from '../lib/format.js'
 import { getBudgetOverview } from '../lib/budget.js'
-import { summarizeFamilyBalances } from '../lib/wallet-summary.js'
+import { summarizeFamilyBalances, splitWalletBalances } from '../lib/wallet-summary.js'
 import { initPrivacyToggle } from '../components/privacy-toggle.js'
 import { guestAvailable, getGuestBudgetOverview, buildGuestReportData } from '../lib/guest-store.js'
+import { isMissingFamilyFinanceSchema } from '../lib/schema-compat.js'
 
 const SVG_NS = 'http://www.w3.org/2000/svg'
 
@@ -122,13 +123,26 @@ function renderBudget(budgets) {
   })
 }
 
+async function loadLegacySummary(sb, familyId) {
+  const [walletRes, balanceRes] = await Promise.all([
+    sb.from('wallets').select('id, name, type, initial_balance, is_archived').eq('family_id', familyId).eq('is_archived', false),
+    sb.from('wallet_balances').select('wallet_id, balance').eq('family_id', familyId)
+  ])
+  if (walletRes.error) throw walletRes.error
+  if (balanceRes.error) throw balanceRes.error
+  return { wallets: walletRes.data ?? [], balances: balanceRes.data ?? [], legacy: true }
+}
+
 async function loadFamilySummary(sb, familyId) {
   const walletRes = await sb.from('wallets')
     .select('id, name, type, scope, initial_balance, is_archived')
     .eq('family_id', familyId)
     .eq('is_archived', false)
 
-  if (walletRes.error) throw walletRes.error
+  if (walletRes.error) {
+    if (isMissingFamilyFinanceSchema(walletRes.error)) return loadLegacySummary(sb, familyId)
+    throw walletRes.error
+  }
   const wallets = walletRes.data ?? []
   const main = wallets.find((w) => w.scope === 'family_main')
   const savings = wallets.find((w) => w.scope === 'family_savings')
@@ -139,7 +153,11 @@ async function loadFamilySummary(sb, familyId) {
       main ? sb.from('family_main_balances').select('wallet_id, balance').eq('wallet_id', main.id).maybeSingle() : Promise.resolve({ data: null, error: null }),
       savings ? sb.from('family_savings_balances').select('wallet_id, balance').eq('wallet_id', savings.id).maybeSingle() : Promise.resolve({ data: null, error: null })
     ])
-    if (mainRes.error || savingsRes.error) throw mainRes.error || savingsRes.error
+    const err = mainRes.error || savingsRes.error
+    if (err) {
+      if (isMissingFamilyFinanceSchema(err)) return loadLegacySummary(sb, familyId)
+      throw err
+    }
     if (mainRes.data) balances.push(mainRes.data)
     if (savingsRes.data) balances.push(savingsRes.data)
   } else {
@@ -148,7 +166,7 @@ async function loadFamilySummary(sb, familyId) {
     balances = legacyRes.data ?? []
   }
 
-  return { wallets, balances }
+  return { wallets, balances, legacy: false }
 }
 
 const ctx = await initPage('/dashboard', { greeting: true })
@@ -186,17 +204,19 @@ if (ctx) {
         monthStart.setHours(0, 0, 0, 0)
         const monthIso = monthStart.toISOString().slice(0, 10)
 
-        const [summaryRes, txRes, recentRes, budgetRes] = await Promise.all([
+        let summaryRes = { wallets: [], balances: [], legacy: false }
+        const [summaryResult, txRes, recentRes, budgetRes] = await Promise.all([
           loadFamilySummary(sb, ctx.familyId),
           sb.from('transactions').select('amount, type').eq('family_id', ctx.familyId).is('deleted_at', null).gte('transaction_date', monthIso),
           sb.from('transactions')
-            .select('id, title, amount, type, transaction_date, wallets(name, type, scope)')
+            .select('id, title, amount, type, transaction_date, wallets(name, type)')
             .eq('family_id', ctx.familyId).is('deleted_at', null)
             .order('transaction_date', { ascending: false }).order('created_at', { ascending: false }).limit(5),
           getBudgetOverview(sb, ctx.familyId, ctx.user.id).catch(() => ({ budgets: [], totals: { limit: 0, spent: 0, remaining: 0 } }))
         ])
         const err = txRes.error || recentRes.error
         if (err) throw err
+        summaryRes = summaryResult
         wallets = summaryRes.wallets
         balances = summaryRes.balances
         txMonth = txRes.data ?? []
@@ -204,15 +224,26 @@ if (ctx) {
         budgetOverview = budgetRes
       }
 
-      const summary = summarizeFamilyBalances(wallets, balances)
-      $('total').textContent = formatRupiah(summary.mainBalance)
-      $('balance-note').textContent = ctx.guest
-        ? 'Mode tamu: Dompet Utama dan Tabungan Keluarga disimpan lokal di perangkat ini.'
-        : summary.main
-          ? 'Saldo Dompet Utama Keluarga. Tabungan keluarga ditampilkan terpisah.'
-          : 'Data dompet keluarga belum tersedia.'
-      $('savings-count').textContent = summary.savings ? '1' : '0'
-      $('savings-total').textContent = formatRupiah(summary.savingsBalance)
+      const legacyMode = !ctx.guest && summaryRes?.legacy
+      if (legacyMode) {
+        const legacySummary = splitWalletBalances(wallets, balances)
+        const label = $('balance-label')
+        if (label) label.textContent = 'Total Saldo (Siap Pakai)'
+        $('total').textContent = formatRupiah(legacySummary.saldoTotal)
+        $('balance-note').textContent = `Dari ${legacySummary.saldoCount} dompet siap pakai.`
+        $('savings-count').textContent = String(legacySummary.savingsCount)
+        $('savings-total').textContent = formatRupiah(legacySummary.savingsTotal)
+      } else {
+        const summary = summarizeFamilyBalances(wallets, balances)
+        $('total').textContent = formatRupiah(summary.mainBalance)
+        $('balance-note').textContent = ctx.guest
+          ? 'Mode tamu: Dompet Utama dan Tabungan Keluarga disimpan lokal di perangkat ini.'
+          : summary.main
+            ? 'Saldo Dompet Utama Keluarga. Tabungan keluarga ditampilkan terpisah.'
+            : 'Data dompet keluarga belum tersedia.'
+        $('savings-count').textContent = summary.savings ? '1' : '0'
+        $('savings-total').textContent = formatRupiah(summary.savingsBalance)
+      }
 
       let income = 0
       let expense = 0

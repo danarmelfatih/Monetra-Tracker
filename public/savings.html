@@ -36,25 +36,35 @@
         <button class="btn btn-ghost dash-action" id="btn-retry" type="button" hidden>Coba lagi</button>
 
         <form class="panel" id="savings-form" hidden>
-          <label>Jenis aksi
-            <select id="savings-source">
-              <option value="deposit_internal">Setor dari Dompet Utama</option>
-              <option value="deposit_external">Setor dari Luar Dompet</option>
-              <option value="withdraw_internal">Tarik ke Dompet Utama</option>
-            </select>
-          </label>
-          <label>Nominal (Rp)
-            <input id="savings-amount" type="number" step="1" min="1" required>
-          </label>
-          <label>Tanggal
-            <input id="savings-date" type="date" required>
-          </label>
-          <label id="category-wrap" hidden>Kategori sumber dana
-            <select id="savings-category"></select>
-          </label>
-          <label>Catatan
-            <input id="savings-note" maxlength="200" placeholder="Opsional">
-          </label>
+          <div id="ledger-fields">
+            <label>Jenis aksi
+              <select id="savings-source">
+                <option value="deposit_internal">Setor dari Dompet Utama</option>
+                <option value="deposit_external">Setor dari Luar Dompet</option>
+                <option value="withdraw_internal">Tarik ke Dompet Utama</option>
+              </select>
+            </label>
+            <label>Nominal (Rp)
+              <input id="savings-amount" type="number" step="1" min="1">
+            </label>
+            <label>Tanggal
+              <input id="savings-date" type="date">
+            </label>
+            <label id="category-wrap" hidden>Kategori sumber dana
+              <select id="savings-category"></select>
+            </label>
+            <label>Catatan
+              <input id="savings-note" maxlength="200" placeholder="Opsional">
+            </label>
+          </div>
+          <div id="legacy-fields" hidden>
+            <label>Nama tabungan
+              <input id="savings-name" maxlength="100" placeholder="mis. Tabungan Darurat">
+            </label>
+            <label>Saldo awal (Rp)
+              <input id="savings-balance" type="number" step="1" value="0">
+            </label>
+          </div>
           <p class="muted" id="main-balance-hint"></p>
           <p class="error" id="form-error"></p>
           <button class="btn" type="submit">Simpan</button>

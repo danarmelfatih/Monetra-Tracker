@@ -14,6 +14,7 @@ import {
   downloadFile
 } from '../lib/report.js'
 import { guestAvailable, buildGuestReportData } from '../lib/guest-store.js'
+import { isMissingFamilyFinanceSchema } from '../lib/schema-compat.js'
 
 const ctx = await initPage('/reports')
 
@@ -75,13 +76,17 @@ if (ctx) {
         wallets: data.wallets
       }
     } else {
-      const [categoryRes, memberRes, walletRes] = await Promise.all([
+      let walletRes = await sb.from('wallets').select('id, name, type, scope').eq('family_id', familyId).order('name')
+      if (walletRes.error && isMissingFamilyFinanceSchema(walletRes.error)) {
+        walletRes = await sb.from('wallets').select('id, name, type').eq('family_id', familyId).order('name')
+        walletRes.data = (walletRes.data ?? []).map((w) => ({ ...w, scope: w.type === 'savings' ? 'legacy_personal' : 'legacy_personal' }))
+      }
+      const [categoryRes, memberRes] = await Promise.all([
         sb.from('categories').select('id, name').eq('family_id', familyId).order('name'),
         sb.from('family_members')
           .select('user_id, profiles(full_name, email)')
           .eq('family_id', familyId)
-          .eq('status', 'active'),
-        sb.from('wallets').select('id, name, type, scope').eq('family_id', familyId).order('name')
+          .eq('status', 'active')
       ])
       const err = categoryRes.error || memberRes.error || walletRes.error
       if (err) throw err
@@ -250,7 +255,7 @@ if (ctx) {
         if ($('filter-member').value) query = query.eq('created_by', $('filter-member').value)
         if ($('filter-wallet').value) query = query.eq('wallet_id', $('filter-wallet').value)
 
-        const [txRes, walletRes, mainBalRes, savingsBalRes, legacyBalRes, incomeLedgerRes] = await Promise.all([
+        let [txRes, walletRes, mainBalRes, savingsBalRes, legacyBalRes, incomeLedgerRes] = await Promise.all([
           query,
           sb.from('wallets').select('id, name, type, scope').eq('family_id', familyId).order('name'),
           sb.from('family_main_balances').select('wallet_id, balance').eq('family_id', familyId),
@@ -265,6 +270,39 @@ if (ctx) {
             .order('entry_date', { ascending: false })
             .limit(1000)
         ])
+        const schemaErr = [txRes.error, walletRes.error, mainBalRes.error, savingsBalRes.error, legacyBalRes.error, incomeLedgerRes.error].find((e) => e && isMissingFamilyFinanceSchema(e))
+        if (schemaErr) {
+          let legacyQuery = sb.from('transactions')
+            .select('id, title, amount, type, transaction_date, note, visibility, category_id, wallet_id, created_by, categories(name), wallets(name, type), profiles(full_name, email)')
+            .eq('family_id', familyId)
+            .is('deleted_at', null)
+            .gte('transaction_date', start)
+            .lte('transaction_date', end)
+            .order('transaction_date', { ascending: false })
+            .limit(1000)
+          if ($('filter-category').value) legacyQuery = legacyQuery.eq('category_id', $('filter-category').value)
+          if ($('filter-member').value) legacyQuery = legacyQuery.eq('created_by', $('filter-member').value)
+          if ($('filter-wallet').value) legacyQuery = legacyQuery.eq('wallet_id', $('filter-wallet').value)
+          const [ltx, lw, lb] = await Promise.all([
+            legacyQuery,
+            sb.from('wallets').select('id, name, type').eq('family_id', familyId).order('name'),
+            sb.from('wallet_balances').select('wallet_id, balance').eq('family_id', familyId)
+          ])
+          const err = ltx.error || lw.error || lb.error
+          if (err) throw err
+          currentRange = { start, end }
+          current = buildReport({
+            transactions: ltx.data ?? [],
+            wallets: lw.data ?? [],
+            balances: lb.data ?? [],
+            categories: refs.categories,
+            members: refs.members
+          })
+          render()
+          setExportEnabled(true)
+          $('filter-note').textContent = 'Mode kompatibilitas: skema family finance belum aktif di database. Laporan memakai data legacy.'
+          return
+        }
         const err = txRes.error || walletRes.error || mainBalRes.error || savingsBalRes.error || legacyBalRes.error || incomeLedgerRes.error
         if (err) throw err
 

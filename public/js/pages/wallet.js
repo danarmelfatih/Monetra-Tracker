@@ -3,12 +3,9 @@ import { initPage } from '../lib/app.js'
 import { el } from '../lib/dom.js'
 import { formatRupiah } from '../lib/format.js'
 import { initPrivacyToggle } from '../components/privacy-toggle.js'
-import { summarizeFamilyBalances } from '../lib/wallet-summary.js'
-import {
-  guestAvailable,
-  listGuestWallets,
-  buildGuestReportData
-} from '../lib/guest-store.js'
+import { summarizeFamilyBalances, splitWalletBalances } from '../lib/wallet-summary.js'
+import { guestAvailable, buildGuestReportData } from '../lib/guest-store.js'
+import { isMissingFamilyFinanceSchema } from '../lib/schema-compat.js'
 
 const ctx = await initPage('/wallets')
 
@@ -24,6 +21,33 @@ if (ctx) {
 
   const showError = (msg = '') => { $('error').textContent = msg }
 
+
+  async function loadLegacy() {
+    const [w, b] = await Promise.all([
+      sb.from('wallets')
+        .select('id, name, type, initial_balance, is_archived')
+        .eq('family_id', familyId).eq('is_archived', false).order('created_at'),
+      sb.from('wallet_balances').select('wallet_id, balance').eq('family_id', familyId)
+    ])
+    const err = w.error || b.error
+    if (err) return showError(err.message)
+    wallets = w.data ?? []
+    balances = new Map((b.data ?? []).map((row) => [row.wallet_id, Number(row.balance)]))
+    showError()
+    renderLegacyWallets()
+  }
+
+  function renderLegacyWallets() {
+    const summary = splitWalletBalances(wallets, [...balances.entries()].map(([wallet_id, balance]) => ({ wallet_id, balance })))
+    const ready = wallets.filter((w) => w.type !== 'savings')
+    const savings = wallets.filter((w) => w.type === 'savings')
+    $('family-main').replaceChildren(el('p', { class: 'muted' }, 'Mode kompatibilitas: skema Dompet Keluarga belum aktif di database. Menampilkan dompet legacy.'))
+    $('family-savings').replaceChildren(el('p', { class: 'muted' }, `Total tabungan legacy: ${formatRupiah(summary.savingsTotal)}`))
+    const cards = [...ready, ...savings].map((w) => walletCard(w, { badge: w.type === 'savings' ? 'Tabungan' : 'Dompet', note: 'Mode kompatibilitas database.' }))
+    $('legacy-list').replaceChildren(...cards)
+    $('legacy-empty').hidden = cards.length > 0
+    $('empty').hidden = cards.length > 0
+  }
   async function load() {
     if (guest) {
       const ok = await guestAvailable()
@@ -32,16 +56,23 @@ if (ctx) {
       wallets = data.wallets.filter((w) => !w.is_archived)
       balances = new Map(data.balances.map((r) => [r.wallet_id, Number(r.balance)]))
     } else {
-      const [w, mainB, savingsB, legacyB] = await Promise.all([
-        sb.from('wallets')
-          .select('id, name, type, scope, initial_balance, is_archived, owner_id')
-          .eq('family_id', familyId).eq('is_archived', false).order('created_at'),
+      const w = await sb.from('wallets')
+        .select('id, name, type, scope, initial_balance, is_archived, owner_id')
+        .eq('family_id', familyId).eq('is_archived', false).order('created_at')
+      if (w.error) {
+        if (isMissingFamilyFinanceSchema(w.error)) return loadLegacy()
+        return showError(w.error.message)
+      }
+      const [mainB, savingsB, legacyB] = await Promise.all([
         sb.from('family_main_balances').select('wallet_id, balance').eq('family_id', familyId),
         sb.from('family_savings_balances').select('wallet_id, balance').eq('family_id', familyId),
         sb.from('wallet_balances').select('wallet_id, balance').eq('family_id', familyId)
       ])
-      const err = w.error || mainB.error || savingsB.error || legacyB.error
-      if (err) return showError(err.message)
+      const err = mainB.error || savingsB.error || legacyB.error
+      if (err) {
+        if (isMissingFamilyFinanceSchema(err)) return loadLegacy()
+        return showError(err.message)
+      }
       wallets = w.data ?? []
       const b = [...(mainB.data ?? []), ...(savingsB.data ?? []), ...(legacyB.data ?? [])]
       balances = new Map()

@@ -2,6 +2,7 @@ import { getSb } from '../lib/supabase.js'
 import { initPage } from '../lib/app.js'
 import { el } from '../lib/dom.js'
 import { formatRupiah } from '../lib/format.js'
+import { isMissingFamilyFinanceSchema } from '../lib/schema-compat.js'
 import {
   guestAvailable,
   guestMember,
@@ -29,7 +30,9 @@ if (ctx) {
   const showError = (msg = '') => { $('error').textContent = msg }
   const showFormError = (msg = '') => { $('form-error').textContent = msg }
 
+  let legacySchema = false
   function familyMainWallet() {
+    if (legacySchema) return null
     return wallets.find((w) => w.scope === 'family_main' && !w.is_archived) || wallets.find((w) => !w.is_archived)
   }
 
@@ -98,8 +101,10 @@ if (ctx) {
         memberId: $('filter-member').value
       })
     } else {
+      const selectWithScope = 'id, title, amount, type, transaction_date, note, visibility, created_by, category_id, wallet_id, profiles(full_name, email), categories(name), wallets(name, scope)'
+      const selectLegacy = 'id, title, amount, type, transaction_date, note, visibility, created_by, category_id, wallet_id, profiles(full_name, email), categories(name), wallets(name)'
       let query = sb.from('transactions')
-        .select('id, title, amount, type, transaction_date, note, visibility, created_by, category_id, wallet_id, profiles(full_name, email), categories(name), wallets(name, scope)')
+        .select(legacySchema ? selectLegacy : selectWithScope)
         .eq('family_id', familyId)
         .is('deleted_at', null)
         .order('transaction_date', { ascending: false })
@@ -115,7 +120,26 @@ if (ctx) {
       if ($('filter-wallet').value) query = query.eq('wallet_id', $('filter-wallet').value)
       if ($('filter-member').value) query = query.eq('created_by', $('filter-member').value)
 
-      const res = await query
+      let res = await query
+      if (res.error && !legacySchema && isMissingFamilyFinanceSchema(res.error)) {
+        legacySchema = true
+        let q2 = sb.from('transactions')
+          .select(selectLegacy)
+          .eq('family_id', familyId)
+          .is('deleted_at', null)
+          .order('transaction_date', { ascending: false })
+          .order('created_at', { ascending: false })
+          .limit(100)
+        const search = $('filter-search').value.trim().replace(/[,%()]/g, ' ')
+        if (search) q2 = q2.or(`title.ilike.%${search}%,note.ilike.%${search}%`)
+        if ($('filter-type').value) q2 = q2.eq('type', $('filter-type').value)
+        if ($('filter-from').value) q2 = q2.gte('transaction_date', $('filter-from').value)
+        if ($('filter-to').value) q2 = q2.lte('transaction_date', $('filter-to').value)
+        if ($('filter-category').value) q2 = q2.eq('category_id', $('filter-category').value)
+        if ($('filter-wallet').value) q2 = q2.eq('wallet_id', $('filter-wallet').value)
+        if ($('filter-member').value) q2 = q2.eq('created_by', $('filter-member').value)
+        res = await q2
+      }
       if (res.error) return showError(res.error.message)
       data = res.data
     }
@@ -174,12 +198,15 @@ if (ctx) {
       if (guest) await deleteGuestTransaction(t.id)
       else {
         const targetWallet = wallets.find((w) => w.id === t.wallet_id)
-        if (targetWallet?.scope === 'family_main') {
+        if (!legacySchema && targetWallet?.scope === 'family_main') {
           const { error } = await sb.rpc('family_delete_transaction', {
             p_transaction_id: t.id,
             p_family_id: familyId
           })
-          if (error) throw error
+          if (error) {
+            if (isMissingFamilyFinanceSchema(error)) throw new Error('Skema database family finance belum aktif. Muat ulang halaman.')
+            throw error
+          }
         } else {
           const { error } = await sb.from('transactions')
             .update({ deleted_at: new Date().toISOString() }).eq('id', t.id)
@@ -213,7 +240,7 @@ if (ctx) {
       if (guest) await saveGuestTransaction(payload, editingId)
       else {
         const targetWallet = wallets.find((w) => w.id === payload.wallet_id)
-        const isFamilyMain = targetWallet?.scope === 'family_main'
+        const isFamilyMain = !legacySchema && targetWallet?.scope === 'family_main'
         if (isFamilyMain) {
           if (editingId) {
             const { error } = await sb.rpc('family_update_transaction', {

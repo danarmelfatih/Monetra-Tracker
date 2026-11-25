@@ -67,6 +67,7 @@ function monthLabel(key) {
 export function buildReport({ transactions = [], wallets = [], balances = [], categories = [], members = [] }) {
   const details = transactions.map((t) => ({
     id: t.id,
+    sourceKind: t.source_kind ?? 'transaction',
     date: t.transaction_date,
     title: t.title || '-',
     type: t.type,
@@ -74,9 +75,12 @@ export function buildReport({ transactions = [], wallets = [], balances = [], ca
     category: t.categories?.name || 'Tanpa kategori',
     walletId: t.wallet_id,
     wallet: t.wallets?.name || '-',
+    walletScope: t.wallets?.scope || null,
     memberId: t.created_by,
     member: t.profiles?.full_name || t.profiles?.email || 'Anggota',
-    visibility: t.visibility === 'shared' ? 'Bersama' : 'Pribadi',
+    visibility: t.source_kind === 'savings_ledger'
+      ? 'Tabungan'
+      : (t.visibility === 'shared' ? 'Bersama' : 'Pribadi'),
     note: t.note || ''
   }))
 
@@ -132,6 +136,7 @@ export function buildReport({ transactions = [], wallets = [], balances = [], ca
     name: w.name,
     type: w.type ?? 'other',
     kind: walletKindLabel(w.type),
+    scope: w.scope ?? 'legacy_personal',
     balance: balanceMap.get(w.id) ?? 0,
     income: 0,
     expense: 0,
@@ -144,8 +149,10 @@ export function buildReport({ transactions = [], wallets = [], balances = [], ca
     if (item.type === 'income') wallet.income += item.amount
     else wallet.expense += item.amount
   }
-  const byWallet = [...walletMap.values()].sort((a, b) =>
-    a.kind.localeCompare(b.kind) || a.name.localeCompare(b.name))
+  const byWallet = [...walletMap.values()].sort((a, b) => {
+    const order = { family_main: 0, family_savings: 1, legacy_personal: 2 }
+    return (order[a.scope] ?? 9) - (order[b.scope] ?? 9) || a.kind.localeCompare(b.kind) || a.name.localeCompare(b.name)
+  })
 
   return {
     details,

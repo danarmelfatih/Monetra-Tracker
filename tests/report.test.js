@@ -61,11 +61,11 @@ test('buildReport mengagregasi pemasukan, pengeluaran, kategori, bulan, anggota,
   expect(report.byMonth[1].net).toBe(-100000)
   expect(report.byMember[0]).toEqual({ id: 'u1', name: 'Andi', income: 1000000, expense: 250000, count: 2 })
   expect(report.byWallet[0]).toEqual({
-    id: 'w1', name: 'BCA', type: 'bank', kind: 'Dompet',
+    id: 'w1', name: 'BCA', type: 'bank', kind: 'Dompet', scope: 'legacy_personal',
     balance: 5000000, income: 1000000, expense: 250000, count: 2
   })
   expect(report.byWallet[2]).toEqual({
-    id: 'w3', name: 'Tabungan Rumah', type: 'savings', kind: 'Tabungan',
+    id: 'w3', name: 'Tabungan Rumah', type: 'savings', kind: 'Tabungan', scope: 'legacy_personal',
     balance: 7500000, income: 0, expense: 0, count: 0
   })
   expect(report.details[1].visibility).toBe('Pribadi')

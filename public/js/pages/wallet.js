@@ -3,14 +3,10 @@ import { initPage } from '../lib/app.js'
 import { el } from '../lib/dom.js'
 import { formatRupiah } from '../lib/format.js'
 import { initPrivacyToggle } from '../components/privacy-toggle.js'
+import { summarizeFamilyBalances } from '../lib/wallet-summary.js'
 import {
   guestAvailable,
-  guestWalletBalances,
-  listGuestTransfers,
   listGuestWallets,
-  saveGuestWallet,
-  archiveGuestWallet,
-  createGuestTransfer,
   buildGuestReportData
 } from '../lib/guest-store.js'
 
@@ -19,20 +15,14 @@ const ctx = await initPage('/wallets')
 if (ctx) {
   const $ = (id) => document.getElementById(id)
   initPrivacyToggle()
-  const form = $('wallet-form')
-  const transferForm = $('transfer-form')
   const guest = ctx.guest === true
   const sb = guest ? null : await getSb()
-  const { user, familyId } = ctx
-  const TYPE_LABEL = {
-    cash: 'Tunai', bank: 'Bank', ewallet: 'E-wallet', savings: 'Tabungan', other: 'Lainnya'
-  }
-
-  let editingId = null
+  const { familyId } = ctx
+  const TYPE_LABEL = { cash: 'Tunai', bank: 'Bank', ewallet: 'E-wallet', savings: 'Tabungan', other: 'Lainnya' }
   let wallets = []
+  let balances = new Map()
 
   const showError = (msg = '') => { $('error').textContent = msg }
-  const showTransferError = (msg = '') => { $('transfer-error').textContent = msg }
 
   async function load() {
     if (guest) {
@@ -40,182 +30,64 @@ if (ctx) {
       if (!ok) return showError('IndexedDB tidak tersedia di perangkat ini.')
       const data = await buildGuestReportData()
       wallets = data.wallets.filter((w) => !w.is_archived)
-      const balances = new Map(guestWalletBalances(data.wallets, data.transactions, data.transfers).map((r) => [r.wallet_id, Number(r.balance)]))
-      const nameById = new Map(data.wallets.map((r) => [r.id, r.name]))
-      $('wallet-list').replaceChildren(...wallets.map((wal) => card(wal, balances)))
-      $('empty').hidden = wallets.length > 0
-      renderTransfers(await listGuestTransfers(10), nameById)
-      fillTransferOptions()
-      showError()
-      return
+      balances = new Map(data.balances.map((r) => [r.wallet_id, Number(r.balance)]))
+    } else {
+      const [w, mainB, savingsB, legacyB] = await Promise.all([
+        sb.from('wallets')
+          .select('id, name, type, scope, initial_balance, is_archived, owner_id')
+          .eq('family_id', familyId).eq('is_archived', false).order('created_at'),
+        sb.from('family_main_balances').select('wallet_id, balance').eq('family_id', familyId),
+        sb.from('family_savings_balances').select('wallet_id, balance').eq('family_id', familyId),
+        sb.from('wallet_balances').select('wallet_id, balance').eq('family_id', familyId)
+      ])
+      const err = w.error || mainB.error || savingsB.error || legacyB.error
+      if (err) return showError(err.message)
+      wallets = w.data ?? []
+      const b = [...(mainB.data ?? []), ...(savingsB.data ?? []), ...(legacyB.data ?? [])]
+      balances = new Map()
+      for (const row of b) balances.set(row.wallet_id, Number(row.balance))
     }
 
-    const [w, b, t, names] = await Promise.all([
-      sb.from('wallets')
-        .select('id, name, type, initial_balance')
-        .eq('family_id', familyId).eq('is_archived', false).order('created_at'),
-      sb.from('wallet_balances').select('wallet_id, balance').eq('family_id', familyId),
-      sb.from('transfers')
-        .select('id, amount, transfer_date, note, from_wallet_id, to_wallet_id')
-        .eq('family_id', familyId).is('deleted_at', null)
-        .order('transfer_date', { ascending: false })
-        .order('created_at', { ascending: false }).limit(10),
-      sb.from('wallets').select('id, name').eq('family_id', familyId)
-    ])
-    const err = w.error || b.error || t.error || names.error
-    if (err) return showError(err.message)
     showError()
-
-    wallets = w.data
-    const balances = new Map(b.data.map((r) => [r.wallet_id, Number(r.balance)]))
-    const nameById = new Map(names.data.map((r) => [r.id, r.name]))
-
-    $('wallet-list').replaceChildren(...wallets.map((wal) => card(wal, balances)))
-    $('empty').hidden = wallets.length > 0
-    renderTransfers(t.data, nameById)
-    fillTransferOptions()
+    renderWallets()
   }
 
-  function card(w, balances) {
+  function walletCard(w, { badge = '', note = '' } = {}) {
+    const balance = balances.get(w.id) ?? w.initial_balance
     return el('article', { class: 'panel wallet-card' },
+      badge ? el('div', { class: 'muted' }, badge) : null,
       el('div', { class: 'w-name' }, w.name),
-      el('div', { class: 'w-type' }, TYPE_LABEL[w.type]),
-      el('div', { class: 'w-balance', 'data-amount': true }, formatRupiah(balances.get(w.id) ?? w.initial_balance)),
-      el('div', { class: 'row-actions' },
-        el('button', { class: 'btn-link', onclick: () => openForm(w) }, 'Edit'),
-        el('button', { class: 'btn-link', onclick: () => archive(w) }, 'Arsipkan')))
+      el('div', { class: 'w-type' }, TYPE_LABEL[w.type] ?? 'Dompet'),
+      el('div', { class: 'w-balance', 'data-amount': true }, formatRupiah(balance)),
+      note ? el('div', { class: 'muted' }, note) : null)
   }
 
-  function openForm(w = null) {
-    editingId = w?.id ?? null
-    $('w-name').value = w?.name ?? ''
-    $('w-type').value = w?.type ?? 'cash'
-    $('w-balance').value = w?.initial_balance ?? 0
-    form.hidden = false
-    $('w-name').focus()
+  function renderWallets() {
+    const summary = summarizeFamilyBalances(wallets, [...balances.entries()].map(([wallet_id, balance]) => ({ wallet_id, balance })))
+    const main = summary.main
+    const savings = summary.savings
+    const legacy = summary.legacy
+
+    $('family-main').replaceChildren(main
+      ? walletCard(main, { badge: 'Dompet Utama Keluarga', note: 'Dipakai bersama untuk pemasukan dan pengeluaran keluarga.' })
+      : el('p', { class: 'muted' }, 'Dompet Utama Keluarga belum tersedia.'))
+
+    $('family-savings').replaceChildren(savings
+      ? walletCard(savings, { badge: 'Tabungan Keluarga', note: 'Kelola setor/tarik dari halaman Tabungan.' })
+      : el('p', { class: 'muted' }, 'Tabungan Keluarga belum tersedia.'))
+
+    $('legacy-list').replaceChildren(...legacy.map((w) => walletCard(w, { badge: 'Dompet Lama', note: 'Read-only selama transisi. Data lama tidak digabung otomatis.' })))
+    $('legacy-empty').hidden = legacy.length > 0
+    $('empty').hidden = wallets.length > 0
   }
 
-  function closeForm() {
-    editingId = null
-    form.hidden = true
-    form.reset()
+
+  const transferBtn = $('btn-transfer')
+  if (transferBtn) {
+    transferBtn.addEventListener('click', () => {
+      location.assign('/savings')
+    })
   }
-
-  function fillTransferOptions() {
-    const options = () => wallets.map((w) => el('option', { value: w.id }, w.name))
-    $('t-from').replaceChildren(...options())
-    $('t-to').replaceChildren(...options())
-  }
-
-  function renderTransfers(items, nameById) {
-    if (!items.length) {
-      $('transfer-list').replaceChildren(el('p', { class: 'muted' }, 'Belum ada transfer.'))
-      return
-    }
-    $('transfer-list').replaceChildren(...items.map((t) => {
-      const route = `${nameById.get(t.from_wallet_id) ?? 'Dompet'} → ${nameById.get(t.to_wallet_id) ?? 'Dompet'}`
-      const note = t.note ? ` · ${t.note}` : ''
-      return el('div', { class: 'cat-row' },
-        el('span', {}, `${t.transfer_date} · ${route}${note}`),
-        el('span', { 'data-amount': true }, formatRupiah(t.amount)))
-    }))
-  }
-
-  async function archive(w) {
-    if (!confirm(`Arsipkan dompet "${w.name}"?`)) return
-    try {
-      if (guest) await archiveGuestWallet(w.id)
-      else {
-        const { error } = await sb.from('wallets').update({ is_archived: true }).eq('id', w.id)
-        if (error) throw error
-      }
-      await load()
-    } catch (e) {
-      showError(e.message)
-    }
-  }
-
-  $('btn-add').addEventListener('click', () => openForm())
-  $('btn-cancel').addEventListener('click', closeForm)
-
-  form.addEventListener('submit', async (e) => {
-    e.preventDefault()
-    showError()
-    const payload = {
-      name: $('w-name').value.trim(),
-      type: $('w-type').value,
-      initial_balance: Number($('w-balance').value)
-    }
-    try {
-      if (guest) await saveGuestWallet(payload, editingId)
-      else if (editingId) {
-        const { error } = await sb.from('wallets').update(payload).eq('id', editingId)
-        if (error) throw error
-      } else {
-        const { error } = await sb.from('wallets').insert({
-          family_id: familyId,
-          owner_id: user.id,
-          ...payload
-        })
-        if (error) throw error
-      }
-      closeForm()
-      await load()
-    } catch (err) {
-      showError(err.message)
-    }
-  })
-
-  $('btn-transfer').addEventListener('click', () => {
-    showTransferError()
-    transferForm.hidden = !transferForm.hidden
-    if (!transferForm.hidden) {
-      if (!$('t-date').value) $('t-date').value = new Date().toISOString().slice(0, 10)
-      $('t-from').focus()
-    }
-  })
-
-  $('btn-transfer-cancel').addEventListener('click', () => {
-    transferForm.hidden = true
-    transferForm.reset()
-    showTransferError()
-  })
-
-  transferForm.addEventListener('submit', async (e) => {
-    e.preventDefault()
-    showTransferError()
-    const payload = {
-      from_wallet_id: $('t-from').value,
-      to_wallet_id: $('t-to').value,
-      amount: Number($('t-amount').value),
-      transfer_date: $('t-date').value,
-      note: $('t-note').value.trim() || null
-    }
-    try {
-      if (guest) await createGuestTransfer(payload)
-      else {
-        if (!payload.from_wallet_id || !payload.to_wallet_id) throw new Error('Pilih dompet asal dan tujuan.')
-        if (payload.from_wallet_id === payload.to_wallet_id) throw new Error('Dompet asal dan tujuan harus berbeda.')
-        if (!Number.isFinite(payload.amount) || payload.amount <= 0) throw new Error('Nominal harus lebih dari 0.')
-        const { data: bal, error: balError } = await sb
-          .from('wallet_balances').select('balance').eq('wallet_id', payload.from_wallet_id).maybeSingle()
-        if (balError) throw balError
-        if (Number(bal?.balance ?? 0) < payload.amount) throw new Error('Saldo dompet asal tidak cukup.')
-        const { error } = await sb.from('transfers').insert({
-          family_id: familyId,
-          ...payload,
-          created_by: user.id,
-          client_op_id: crypto.randomUUID()
-        })
-        if (error) throw error
-      }
-      transferForm.hidden = true
-      transferForm.reset()
-      await load()
-    } catch (err) {
-      showTransferError(err.message)
-    }
-  })
 
   await load()
 }

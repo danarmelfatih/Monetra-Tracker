@@ -1,21 +1,19 @@
 const DB_NAME = 'monetra-guest'
-const DB_VERSION = 1
-const STORES = ['categories', 'wallets', 'transactions', 'transfers', 'budgets']
-
-let dbPromise = null
+const DB_VERSION = 2
+const STORES = ['categories', 'wallets', 'transactions', 'transfers', 'budgets', 'savings_ledger']
 
 function req(request) {
   return new Promise((resolve, reject) => {
     request.onsuccess = () => resolve(request.result)
-    request.onerror = () => reject(request.error || new Error('IndexedDB request gagal'))
+    request.onerror = () => reject(request.error ?? new Error('IndexedDB request gagal.'))
   })
 }
 
-function txDone(transaction) {
+function txDone(tx) {
   return new Promise((resolve, reject) => {
-    transaction.oncomplete = () => resolve()
-    transaction.onerror = () => reject(transaction.error || new Error('IndexedDB transaksi gagal'))
-    transaction.onabort = () => reject(transaction.error || new Error('IndexedDB transaksi dibatalkan'))
+    tx.oncomplete = () => resolve()
+    tx.onerror = () => reject(tx.error ?? new Error('IndexedDB transaction gagal.'))
+    tx.onabort = () => reject(tx.error ?? new Error('IndexedDB transaction dibatalkan.'))
   })
 }
 
@@ -23,63 +21,75 @@ export function hasIndexedDb() {
   return typeof indexedDB !== 'undefined'
 }
 
-export function openGuestDb() {
-  if (!hasIndexedDb()) return Promise.reject(new Error('IndexedDB tidak tersedia di perangkat ini.'))
-  if (dbPromise) return dbPromise
-  dbPromise = new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, DB_VERSION)
-    request.onupgradeneeded = () => {
-      const db = request.result
-      for (const name of STORES) {
-        if (!db.objectStoreNames.contains(name)) db.createObjectStore(name, { keyPath: 'id' })
-      }
+export async function openGuestDb() {
+  if (!hasIndexedDb()) throw new Error('IndexedDB tidak tersedia di perangkat ini.')
+  const request = indexedDB.open(DB_NAME, DB_VERSION)
+  request.onupgradeneeded = () => {
+    const db = request.result
+    for (const name of STORES) {
+      if (!db.objectStoreNames.contains(name)) db.createObjectStore(name, { keyPath: 'id' })
     }
-    request.onsuccess = () => {
-      const db = request.result
-      db.onversionchange = () => db.close()
-      resolve(db)
+    const tx = request.transaction
+    if (tx) {
+      const wallets = tx.objectStore('wallets')
+      if (!wallets.indexNames.contains('scope')) wallets.createIndex('scope', 'scope', { unique: false })
+      if (!wallets.indexNames.contains('type')) wallets.createIndex('type', 'type', { unique: false })
+      const ledger = tx.objectStore('savings_ledger')
+      if (!ledger.indexNames.contains('entry_date')) ledger.createIndex('entry_date', 'entry_date', { unique: false })
+      if (!ledger.indexNames.contains('kind')) ledger.createIndex('kind', 'kind', { unique: false })
     }
-    request.onerror = () => reject(request.error || new Error('Gagal membuka IndexedDB'))
-  })
-  return dbPromise
+  }
+  return req(request)
 }
 
 export async function getAllGuest(storeName) {
   const db = await openGuestDb()
-  const tx = db.transaction(storeName, 'readonly')
-  const store = tx.objectStore(storeName)
-  const rows = await req(store.getAll())
-  await txDone(tx)
-  return Array.isArray(rows) ? rows : []
+  try {
+    const tx = db.transaction(storeName, 'readonly')
+    return await req(tx.objectStore(storeName).getAll())
+  } finally {
+    db.close()
+  }
 }
 
 export async function putGuest(storeName, value) {
   const db = await openGuestDb()
-  const tx = db.transaction(storeName, 'readwrite')
-  tx.objectStore(storeName).put(value)
-  await txDone(tx)
-  return value
+  try {
+    const tx = db.transaction(storeName, 'readwrite')
+    tx.objectStore(storeName).put(value)
+    await txDone(tx)
+  } finally {
+    db.close()
+  }
 }
 
 export async function putManyGuest(storeName, values) {
+  if (!Array.isArray(values) || values.length === 0) return
   const db = await openGuestDb()
-  const tx = db.transaction(storeName, 'readwrite')
-  const store = tx.objectStore(storeName)
-  for (const value of values) store.put(value)
-  await txDone(tx)
-  return values
+  try {
+    const tx = db.transaction(storeName, 'readwrite')
+    for (const value of values) tx.objectStore(storeName).put(value)
+    await txDone(tx)
+  } finally {
+    db.close()
+  }
 }
 
 export async function clearGuestStores() {
+  if (!hasIndexedDb()) return
   const db = await openGuestDb()
-  const tx = db.transaction(STORES, 'readwrite')
-  for (const name of STORES) tx.objectStore(name).clear()
-  await txDone(tx)
+  try {
+    const tx = db.transaction(STORES, 'readwrite')
+    for (const name of STORES) tx.objectStore(name).clear()
+    await txDone(tx)
+  } finally {
+    db.close()
+  }
 }
 
-export function makeGuestId(prefix = 'guest') {
-  const id = globalThis.crypto?.randomUUID?.()
-  return `${prefix}-${id || `${Date.now()}-${Math.random().toString(16).slice(2)}`}`
+export function makeGuestId(prefix = 'id') {
+  const value = crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`
+  return `${prefix}-${value}`
 }
 
 export function nowIso() {

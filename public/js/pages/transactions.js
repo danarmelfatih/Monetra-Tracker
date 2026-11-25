@@ -29,6 +29,10 @@ if (ctx) {
   const showError = (msg = '') => { $('error').textContent = msg }
   const showFormError = (msg = '') => { $('form-error').textContent = msg }
 
+  function familyMainWallet() {
+    return wallets.find((w) => w.scope === 'family_main' && !w.is_archived) || wallets.find((w) => !w.is_archived)
+  }
+
   async function loadRefs() {
     if (guest) {
       const ok = await guestAvailable()
@@ -40,7 +44,7 @@ if (ctx) {
     } else {
       const [c, w, m] = await Promise.all([
         sb.from('categories').select('id, name, type').eq('family_id', familyId).eq('is_archived', false).order('name'),
-        sb.from('wallets').select('id, name').eq('family_id', familyId).eq('is_archived', false).order('name'),
+        sb.from('wallets').select('id, name, type, scope').eq('family_id', familyId).eq('is_archived', false).order('name'),
         sb.from('family_members')
           .select('user_id, role, profiles(full_name, email)')
           .eq('family_id', familyId).eq('status', 'active')
@@ -73,7 +77,12 @@ if (ctx) {
   }
 
   function fillWalletOptions() {
-    $('tx-wallet').replaceChildren(...wallets.map((w) => el('option', { value: w.id }, w.name)))
+    const main = familyMainWallet()
+    const list = main ? [main, ...wallets.filter((w) => w.id !== main.id && w.scope !== 'family_savings')] : wallets.filter((w) => w.scope !== 'family_savings')
+    $('tx-wallet').replaceChildren(...list.map((w) => {
+      const label = w.scope === 'family_main' ? `${w.name}` : w.name
+      return el('option', { value: w.id }, label)
+    }))
   }
 
   async function load() {
@@ -90,7 +99,7 @@ if (ctx) {
       })
     } else {
       let query = sb.from('transactions')
-        .select('id, title, amount, type, transaction_date, note, visibility, created_by, category_id, wallet_id, profiles(full_name, email), categories(name), wallets(name)')
+        .select('id, title, amount, type, transaction_date, note, visibility, created_by, category_id, wallet_id, profiles(full_name, email), categories(name), wallets(name, scope)')
         .eq('family_id', familyId)
         .is('deleted_at', null)
         .order('transaction_date', { ascending: false })
@@ -125,7 +134,7 @@ if (ctx) {
       el('div', { class: 'tx-main' },
         el('div', { class: 'tx-title' }, t.title),
         el('div', { class: 'muted' },
-          `${t.transaction_date} · ${typeLabel} · ${category} · ${wallet} · ${name} · ${t.visibility}`),
+          `${t.transaction_date} · ${typeLabel} · ${category} · ${wallet} · ${name}`),
         t.note ? el('div', { class: 'muted' }, t.note) : null),
       el('div', { class: `tx-amount ${t.type}` }, formatRupiah(t.amount)),
       canEdit ? el('div', { class: 'row-actions' },
@@ -141,10 +150,10 @@ if (ctx) {
     $('tx-title').value = t?.title ?? ''
     $('tx-amount').value = t?.amount ?? ''
     $('tx-category').value = t?.category_id ?? ''
-    $('tx-wallet').value = t?.wallet_id ?? wallets[0]?.id ?? ''
+    $('tx-wallet').value = t?.wallet_id ?? familyMainWallet()?.id ?? wallets[0]?.id ?? ''
     $('tx-wallet').disabled = !!editingId
     $('tx-date').value = t?.transaction_date ?? new Date().toISOString().slice(0, 10)
-    $('tx-visibility').value = t?.visibility ?? 'private'
+    $('tx-visibility').value = 'shared'
     $('tx-note').value = t?.note ?? ''
     showFormError()
     form.hidden = false
@@ -164,9 +173,18 @@ if (ctx) {
     try {
       if (guest) await deleteGuestTransaction(t.id)
       else {
-        const { error } = await sb.from('transactions')
-          .update({ deleted_at: new Date().toISOString() }).eq('id', t.id)
-        if (error) throw error
+        const targetWallet = wallets.find((w) => w.id === t.wallet_id)
+        if (targetWallet?.scope === 'family_main') {
+          const { error } = await sb.rpc('family_delete_transaction', {
+            p_transaction_id: t.id,
+            p_family_id: familyId
+          })
+          if (error) throw error
+        } else {
+          const { error } = await sb.from('transactions')
+            .update({ deleted_at: new Date().toISOString() }).eq('id', t.id)
+          if (error) throw error
+        }
       }
       await load()
     } catch (e) {
@@ -189,21 +207,52 @@ if (ctx) {
       amount: Number($('tx-amount').value),
       transaction_date: $('tx-date').value,
       note: $('tx-note').value.trim() || null,
-      visibility: $('tx-visibility').value
+      visibility: 'shared'
     }
     try {
       if (guest) await saveGuestTransaction(payload, editingId)
-      else if (editingId) {
-        const { error } = await sb.from('transactions').update(payload).eq('id', editingId)
-        if (error) throw error
-      } else {
-        const { error } = await sb.from('transactions').insert({
-          ...payload,
-          family_id: familyId,
-          created_by: user.id,
-          client_op_id: crypto.randomUUID()
-        })
-        if (error) throw error
+      else {
+        const targetWallet = wallets.find((w) => w.id === payload.wallet_id)
+        const isFamilyMain = targetWallet?.scope === 'family_main'
+        if (isFamilyMain) {
+          if (editingId) {
+            const { error } = await sb.rpc('family_update_transaction', {
+              p_transaction_id: editingId,
+              p_family_id: familyId,
+              p_type: payload.type,
+              p_amount: payload.amount,
+              p_transaction_date: payload.transaction_date,
+              p_category_id: payload.category_id,
+              p_title: payload.title,
+              p_note: payload.note,
+              p_client_op_id: crypto.randomUUID()
+            })
+            if (error) throw error
+          } else {
+            const rpc = payload.type === 'income' ? 'family_record_income' : 'family_record_expense'
+            const { error } = await sb.rpc(rpc, {
+              p_family_id: familyId,
+              p_amount: payload.amount,
+              p_transaction_date: payload.transaction_date,
+              p_category_id: payload.category_id,
+              p_title: payload.title,
+              p_note: payload.note,
+              p_client_op_id: crypto.randomUUID()
+            })
+            if (error) throw error
+          }
+        } else if (editingId) {
+          const { error } = await sb.from('transactions').update(payload).eq('id', editingId)
+          if (error) throw error
+        } else {
+          const { error } = await sb.from('transactions').insert({
+            ...payload,
+            family_id: familyId,
+            created_by: user.id,
+            client_op_id: crypto.randomUUID()
+          })
+          if (error) throw error
+        }
       }
       closeForm()
       await load()

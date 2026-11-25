@@ -28,61 +28,31 @@
             <button class="btn btn-ghost privacy-toggle" id="btn-hide-amounts" type="button" aria-label="Sembunyikan nominal">
               <span class="privacy-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-6 10-6 10 6 10 6-3.6 6-10 6-10-6-10-6Z"></path><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6"></path></svg></span><span class="privacy-label">Sembunyikan</span>
             </button>
-            <button class="btn btn-ghost" id="btn-transfer">Transfer</button>
-            <button class="btn" id="btn-add">+ Dompet</button>
+            <button class="btn btn-ghost" id="btn-transfer" type="button">Setor/Tarik Tabungan</button>
           </div>
         </div>
 
-        <form class="panel" id="wallet-form" hidden>
-          <label>Nama dompet
-            <input id="w-name" required maxlength="100" placeholder="mis. Dompet Tunai">
-          </label>
-          <label>Jenis
-            <select id="w-type">
-              <option value="cash">Tunai</option>
-              <option value="bank">Bank</option>
-              <option value="ewallet">E-wallet</option>
-              <option value="savings">Tabungan</option>
-              <option value="other">Lainnya</option>
-            </select>
-          </label>
-          <label>Saldo awal (Rp)
-            <input id="w-balance" type="number" step="1" value="0" required>
-          </label>
-          <p></p>
-          <button class="btn" type="submit">Simpan</button>
-          <button class="btn btn-ghost" type="button" id="btn-cancel">Batal</button>
-        </form>
-
-        <form class="panel" id="transfer-form" hidden>
-          <h2>Transfer Antar Dompet</h2>
-          <label>Dari
-            <select id="t-from" required></select>
-          </label>
-          <label>Ke
-            <select id="t-to" required></select>
-          </label>
-          <label>Nominal (Rp)
-            <input id="t-amount" type="number" step="1" min="1" required>
-          </label>
-          <label>Tanggal
-            <input id="t-date" type="date" required>
-          </label>
-          <label>Catatan
-            <input id="t-note" maxlength="200">
-          </label>
-          <p class="error" id="transfer-error"></p>
-          <button class="btn" type="submit">Kirim Transfer</button>
-          <button class="btn btn-ghost" type="button" id="btn-transfer-cancel">Batal</button>
-        </form>
-
         <p class="error" id="error"></p>
-        <p class="muted" id="empty" hidden>Belum ada dompet. Klik "+ Dompet" untuk membuat yang pertama.</p>
-        <div class="grid" id="wallet-list"></div>
+        <p class="muted" id="empty" hidden>Belum ada dompet.</p>
 
-        <section class="panel" id="transfer-panel">
-          <h2>Transfer Terakhir</h2>
-          <div id="transfer-list"></div>
+        <section class="panel">
+          <h2>Dompet Utama Keluarga</h2>
+          <p class="muted">Saldo dipakai bersama oleh semua anggota aktif keluarga.</p>
+          <div id="family-main"></div>
+        </section>
+
+        <section class="panel">
+          <h2>Tabungan Keluarga</h2>
+          <p class="muted">Tabungan terpisah dari Dompet Utama. Kelola setor/tarik dari halaman Tabungan.</p>
+          <div id="family-savings"></div>
+        </section>
+
+
+        <section class="panel">
+          <h2>Dompet Lama</h2>
+          <p class="muted">Read-only selama transisi. Tidak ada penggabungan saldo/transaksi otomatis ke Dompet Utama Keluarga.</p>
+          <p class="muted" id="legacy-empty" hidden>Tidak ada dompet lama.</p>
+          <div class="grid" id="legacy-list"></div>
         </section>
       </main>
     </div>

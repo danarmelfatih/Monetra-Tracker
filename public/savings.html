@@ -23,13 +23,12 @@
       <header id="header"></header>
       <main id="content">
         <div class="page-head">
-          <h1>Tabungan</h1>
+          <h1>Tabungan Keluarga</h1>
           <div class="head-actions">
             <button class="btn btn-ghost privacy-toggle" id="btn-hide-amounts" type="button" aria-label="Sembunyikan nominal">
               <span class="privacy-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-6 10-6 10 6 10 6-3.6 6-10 6-10-6-10-6Z"></path><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6"></path></svg></span><span class="privacy-label">Sembunyikan</span>
             </button>
-            <a class="btn btn-ghost" href="/wallets">Transfer</a>
-            <button class="btn" id="btn-add" type="button">+ Tabungan</button>
+            <button class="btn" id="btn-add" type="button">+ Catat Tabungan</button>
           </div>
         </div>
 
@@ -37,12 +36,26 @@
         <button class="btn btn-ghost dash-action" id="btn-retry" type="button" hidden>Coba lagi</button>
 
         <form class="panel" id="savings-form" hidden>
-          <label>Nama tabungan
-            <input id="savings-name" required maxlength="100" placeholder="mis. Tabungan Rumah">
+          <label>Jenis aksi
+            <select id="savings-source">
+              <option value="deposit_internal">Setor dari Dompet Utama</option>
+              <option value="deposit_external">Setor dari Luar Dompet</option>
+              <option value="withdraw_internal">Tarik ke Dompet Utama</option>
+            </select>
           </label>
-          <label>Saldo awal (Rp)
-            <input id="savings-balance" type="number" step="1" value="0" required>
+          <label>Nominal (Rp)
+            <input id="savings-amount" type="number" step="1" min="1" required>
           </label>
+          <label>Tanggal
+            <input id="savings-date" type="date" required>
+          </label>
+          <label id="category-wrap" hidden>Kategori sumber dana
+            <select id="savings-category"></select>
+          </label>
+          <label>Catatan
+            <input id="savings-note" maxlength="200" placeholder="Opsional">
+          </label>
+          <p class="muted" id="main-balance-hint"></p>
           <p class="error" id="form-error"></p>
           <button class="btn" type="submit">Simpan</button>
           <button class="btn btn-ghost" type="button" id="btn-cancel">Batal</button>
@@ -51,23 +64,23 @@
         <section class="panel" id="savings-summary">
           <div class="summary-row">
             <div class="summary-item">
-              <div class="label">Total Tabungan</div>
+              <div class="label">Saldo Tabungan Keluarga</div>
               <div class="value" id="savings-total" data-amount>Memuat...</div>
-              <div class="muted">Tidak ikut Total Saldo siap pakai</div>
+              <div class="muted">Terpisah dari Dompet Utama Keluarga</div>
             </div>
             <div class="summary-item">
-              <div class="label">Jumlah tabungan</div>
+              <div class="label">Akun tabungan</div>
               <div class="value" id="savings-count">Memuat...</div>
-              <div class="muted">Dompet bertipe tabungan</div>
+              <div class="muted">Satu Tabungan Keluarga per keluarga</div>
             </div>
           </div>
         </section>
 
-        <p class="muted">Gunakan Transfer di halaman Dompet untuk setor atau tarik dana.</p>
+        <p class="muted">Setor internal memindahkan dana dari Dompet Utama ke Tabungan. Setor eksternal menambah Tabungan sebagai pemasukan keluarga dan tidak mengurangi Dompet Utama. Tarik tabungan mengembalikan dana ke Dompet Utama.</p>
 
-        <p class="muted" id="savings-loading">Memuat daftar tabungan...</p>
-        <p class="muted" id="savings-empty" hidden>Belum ada tabungan. Klik "+ Tabungan" untuk membuat yang pertama.</p>
-        <div class="grid" id="savings-list"></div>
+        <p class="muted" id="savings-loading">Memuat riwayat tabungan...</p>
+        <p class="muted" id="savings-empty" hidden>Belum ada riwayat tabungan.</p>
+        <div class="cat-list" id="savings-list"></div>
       </main>
     </div>
   </div>

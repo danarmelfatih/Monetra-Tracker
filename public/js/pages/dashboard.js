@@ -4,9 +4,9 @@ import { el } from '../lib/dom.js'
 import { icon } from '../lib/icons.js'
 import { formatRupiah } from '../lib/format.js'
 import { getBudgetOverview } from '../lib/budget.js'
-import { splitWalletBalances } from '../lib/wallet-summary.js'
+import { summarizeFamilyBalances } from '../lib/wallet-summary.js'
 import { initPrivacyToggle } from '../components/privacy-toggle.js'
-import { guestAvailable, getGuestBudgetOverview, guestWalletBalances, buildGuestReportData } from '../lib/guest-store.js'
+import { guestAvailable, getGuestBudgetOverview, buildGuestReportData } from '../lib/guest-store.js'
 
 const SVG_NS = 'http://www.w3.org/2000/svg'
 
@@ -122,6 +122,35 @@ function renderBudget(budgets) {
   })
 }
 
+async function loadFamilySummary(sb, familyId) {
+  const walletRes = await sb.from('wallets')
+    .select('id, name, type, scope, initial_balance, is_archived')
+    .eq('family_id', familyId)
+    .eq('is_archived', false)
+
+  if (walletRes.error) throw walletRes.error
+  const wallets = walletRes.data ?? []
+  const main = wallets.find((w) => w.scope === 'family_main')
+  const savings = wallets.find((w) => w.scope === 'family_savings')
+
+  let balances = []
+  if (main || savings) {
+    const [mainRes, savingsRes] = await Promise.all([
+      main ? sb.from('family_main_balances').select('wallet_id, balance').eq('wallet_id', main.id).maybeSingle() : Promise.resolve({ data: null, error: null }),
+      savings ? sb.from('family_savings_balances').select('wallet_id, balance').eq('wallet_id', savings.id).maybeSingle() : Promise.resolve({ data: null, error: null })
+    ])
+    if (mainRes.error || savingsRes.error) throw mainRes.error || savingsRes.error
+    if (mainRes.data) balances.push(mainRes.data)
+    if (savingsRes.data) balances.push(savingsRes.data)
+  } else {
+    const legacyRes = await sb.from('wallet_balances').select('wallet_id, balance').eq('family_id', familyId)
+    if (legacyRes.error) throw legacyRes.error
+    balances = legacyRes.data ?? []
+  }
+
+  return { wallets, balances }
+}
+
 const ctx = await initPage('/dashboard', { greeting: true })
 
 if (ctx) {
@@ -145,7 +174,7 @@ if (ctx) {
         if (!ok) throw new Error('IndexedDB tidak tersedia di perangkat ini.')
         const data = await buildGuestReportData()
         wallets = data.wallets.filter((w) => !w.is_archived)
-        balances = guestWalletBalances(wallets, data.transactions, data.transfers)
+        balances = data.balances
         const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10)
         txMonth = data.transactions.filter((t) => t.transaction_date >= monthStart)
         recent = data.transactions.slice(0, 5)
@@ -157,29 +186,33 @@ if (ctx) {
         monthStart.setHours(0, 0, 0, 0)
         const monthIso = monthStart.toISOString().slice(0, 10)
 
-        const [walletRes, balanceRes, txRes, recentRes, budgetRes] = await Promise.all([
-          sb.from('wallets').select('id, type').eq('family_id', ctx.familyId).eq('is_archived', false),
-          sb.from('wallet_balances').select('wallet_id, balance').eq('family_id', ctx.familyId),
+        const [summaryRes, txRes, recentRes, budgetRes] = await Promise.all([
+          loadFamilySummary(sb, ctx.familyId),
           sb.from('transactions').select('amount, type').eq('family_id', ctx.familyId).is('deleted_at', null).gte('transaction_date', monthIso),
-          sb.from('transactions').select('id, title, amount, type, transaction_date, wallets(name)').eq('family_id', ctx.familyId).is('deleted_at', null).order('transaction_date', { ascending: false }).order('created_at', { ascending: false }).limit(5),
+          sb.from('transactions')
+            .select('id, title, amount, type, transaction_date, wallets(name, type, scope)')
+            .eq('family_id', ctx.familyId).is('deleted_at', null)
+            .order('transaction_date', { ascending: false }).order('created_at', { ascending: false }).limit(5),
           getBudgetOverview(sb, ctx.familyId, ctx.user.id).catch(() => ({ budgets: [], totals: { limit: 0, spent: 0, remaining: 0 } }))
         ])
-        const err = walletRes.error || balanceRes.error || txRes.error || recentRes.error
+        const err = txRes.error || recentRes.error
         if (err) throw err
-        wallets = walletRes.data ?? []
-        balances = balanceRes.data ?? []
+        wallets = summaryRes.wallets
+        balances = summaryRes.balances
         txMonth = txRes.data ?? []
         recent = recentRes.data ?? []
         budgetOverview = budgetRes
       }
 
-      const summary = splitWalletBalances(wallets, balances)
-      $('total').textContent = formatRupiah(summary.saldoTotal)
+      const summary = summarizeFamilyBalances(wallets, balances)
+      $('total').textContent = formatRupiah(summary.mainBalance)
       $('balance-note').textContent = ctx.guest
-        ? 'Mode tamu: data disimpan lokal di perangkat ini.'
-        : `Dari ${summary.saldoCount} dompet siap pakai.`
-      $('savings-count').textContent = String(summary.savingsCount)
-      $('savings-total').textContent = formatRupiah(summary.savingsTotal)
+        ? 'Mode tamu: Dompet Utama dan Tabungan Keluarga disimpan lokal di perangkat ini.'
+        : summary.main
+          ? 'Saldo Dompet Utama Keluarga. Tabungan keluarga ditampilkan terpisah.'
+          : 'Data dompet keluarga belum tersedia.'
+      $('savings-count').textContent = summary.savings ? '1' : '0'
+      $('savings-total').textContent = formatRupiah(summary.savingsBalance)
 
       let income = 0
       let expense = 0

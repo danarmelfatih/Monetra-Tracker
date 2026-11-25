@@ -81,7 +81,7 @@ if (ctx) {
           .select('user_id, profiles(full_name, email)')
           .eq('family_id', familyId)
           .eq('status', 'active'),
-        sb.from('wallets').select('id, name, type').eq('family_id', familyId).order('name')
+        sb.from('wallets').select('id, name, type, scope').eq('family_id', familyId).order('name')
       ])
       const err = categoryRes.error || memberRes.error || walletRes.error
       if (err) throw err
@@ -239,7 +239,7 @@ if (ctx) {
         })
       } else {
         let query = sb.from('transactions')
-          .select('id, title, amount, type, transaction_date, note, visibility, category_id, wallet_id, created_by, categories(name), wallets(name), profiles(full_name, email)')
+          .select('id, title, amount, type, transaction_date, note, visibility, category_id, wallet_id, created_by, categories(name), wallets(name, type, scope), profiles(full_name, email)')
           .eq('family_id', familyId)
           .is('deleted_at', null)
           .gte('transaction_date', start)
@@ -250,19 +250,65 @@ if (ctx) {
         if ($('filter-member').value) query = query.eq('created_by', $('filter-member').value)
         if ($('filter-wallet').value) query = query.eq('wallet_id', $('filter-wallet').value)
 
-        const [txRes, walletRes, balanceRes] = await Promise.all([
+        const [txRes, walletRes, mainBalRes, savingsBalRes, legacyBalRes, incomeLedgerRes] = await Promise.all([
           query,
-          sb.from('wallets').select('id, name, type').eq('family_id', familyId).order('name'),
-          sb.from('wallet_balances').select('wallet_id, balance').eq('family_id', familyId)
+          sb.from('wallets').select('id, name, type, scope').eq('family_id', familyId).order('name'),
+          sb.from('family_main_balances').select('wallet_id, balance').eq('family_id', familyId),
+          sb.from('family_savings_balances').select('wallet_id, balance').eq('family_id', familyId),
+          sb.from('wallet_balances').select('wallet_id, balance').eq('family_id', familyId),
+          sb.from('family_income_report_entries')
+            .select('source_id, source_kind, family_id, created_by, entry_date, amount, title, category_id, note, destination_wallet_id, destination_scope')
+            .eq('family_id', familyId)
+            .eq('source_kind', 'savings_ledger')
+            .gte('entry_date', start)
+            .lte('entry_date', end)
+            .order('entry_date', { ascending: false })
+            .limit(1000)
         ])
-        const err = txRes.error || walletRes.error || balanceRes.error
+        const err = txRes.error || walletRes.error || mainBalRes.error || savingsBalRes.error || legacyBalRes.error || incomeLedgerRes.error
         if (err) throw err
+
+        const wallets = walletRes.data ?? []
+        const walletById = new Map(wallets.map((w) => [w.id, w]))
+        const categoryById = new Map(refs.categories.map((c) => [c.id, c]))
+        const memberById = new Map(refs.members.map((m) => [m.user_id, m]))
+        const balanceMap = new Map()
+        for (const row of [...(legacyBalRes.data ?? []), ...(mainBalRes.data ?? []), ...(savingsBalRes.data ?? [])]) {
+          balanceMap.set(row.wallet_id, Number(row.balance))
+        }
+        const balances = [...balanceMap.entries()].map(([wallet_id, balance]) => ({ wallet_id, balance }))
+
+        let ledgerRows = (incomeLedgerRes.data ?? []).map((row) => {
+          const wallet = walletById.get(row.destination_wallet_id)
+          const category = row.category_id ? categoryById.get(row.category_id) : null
+          const member = memberById.get(row.created_by)
+          return {
+            id: `ledger-${row.source_id}`,
+            source_kind: 'savings_ledger',
+            family_id: row.family_id,
+            wallet_id: row.destination_wallet_id,
+            category_id: row.category_id,
+            created_by: row.created_by,
+            type: 'income',
+            title: row.title || 'Setoran tabungan (eksternal)',
+            amount: Number(row.amount),
+            transaction_date: row.entry_date,
+            note: row.note || null,
+            visibility: 'shared',
+            categories: category ? { name: category.name } : null,
+            wallets: wallet ? { name: wallet.name, type: wallet.type, scope: wallet.scope } : null,
+            profiles: member?.profiles ?? { full_name: 'Anggota', email: '' }
+          }
+        })
+        if ($('filter-category').value) ledgerRows = ledgerRows.filter((r) => r.category_id === $('filter-category').value)
+        if ($('filter-member').value) ledgerRows = ledgerRows.filter((r) => r.created_by === $('filter-member').value)
+        if ($('filter-wallet').value) ledgerRows = ledgerRows.filter((r) => r.wallet_id === $('filter-wallet').value)
 
         currentRange = { start, end }
         current = buildReport({
-          transactions: txRes.data ?? [],
-          wallets: walletRes.data ?? [],
-          balances: balanceRes.data ?? [],
+          transactions: [...(txRes.data ?? []), ...ledgerRows],
+          wallets,
+          balances,
           categories: refs.categories,
           members: refs.members
         })

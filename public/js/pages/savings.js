@@ -2,9 +2,16 @@ import { getSb } from '../lib/supabase.js'
 import { initPage } from '../lib/app.js'
 import { el } from '../lib/dom.js'
 import { formatRupiah } from '../lib/format.js'
-import { splitWalletBalances } from '../lib/wallet-summary.js'
 import { initPrivacyToggle } from '../components/privacy-toggle.js'
-import { guestAvailable, listGuestWallets, saveGuestWallet, archiveGuestWallet, buildGuestReportData, guestWalletBalances } from '../lib/guest-store.js'
+import {
+  guestAvailable,
+  buildGuestReportData,
+  listGuestCategories,
+  listGuestSavingsLedger,
+  guestDepositInternal,
+  guestDepositExternal,
+  guestWithdrawInternal
+} from '../lib/guest-store.js'
 
 const ctx = await initPage('/savings')
 
@@ -14,8 +21,10 @@ if (ctx) {
   const form = $('savings-form')
   const guest = ctx.guest === true
   const sb = guest ? null : await getSb()
-  const { user, familyId } = ctx
-  let editingId = null
+  const { familyId } = ctx
+  let categories = []
+  let mainBalance = 0
+  let savingsBalance = 0
 
   const showError = (message = '') => {
     $('error').textContent = message ? `Gagal memuat tabungan: ${message}. Coba muat ulang halaman.` : ''
@@ -23,44 +32,99 @@ if (ctx) {
   }
   const showFormError = (message = '') => { $('form-error').textContent = message }
 
-  function openForm(wallet = null) {
-    editingId = wallet?.id ?? null
-    $('savings-name').value = wallet?.name ?? ''
-    $('savings-balance').value = wallet?.initial_balance ?? 0
-    showFormError()
-    form.hidden = false
-    $('savings-name').focus()
+  function kindLabel(kind) {
+    if (kind === 'deposit_internal') return 'Setor dari Dompet Utama'
+    if (kind === 'deposit_external') return 'Setor dari Luar Dompet'
+    return 'Tarik ke Dompet Utama'
   }
 
-  function closeForm() {
-    editingId = null
-    form.hidden = true
-    form.reset()
-    showFormError()
-  }
-
-  async function archive(wallet) {
-    if (!confirm(`Arsipkan tabungan "${wallet.name}"?`)) return
-    try {
-      if (guest) await archiveGuestWallet(wallet.id)
-      else {
-        const { error } = await sb.from('wallets').update({ is_archived: true }).eq('id', wallet.id)
-        if (error) throw error
-      }
-      await load()
-    } catch (e) {
-      showError(e.message)
+  function fillCategories() {
+    const source = $('savings-source').value
+    const isExternal = source === 'deposit_external'
+    $('category-wrap').hidden = !isExternal
+    $('savings-category').required = isExternal
+    if (!isExternal) {
+      $('savings-category').replaceChildren(el('option', { value: '' }, 'Pilih kategori'))
+      return
     }
+    $('savings-category').replaceChildren(
+      el('option', { value: '' }, 'Pilih kategori'),
+      ...categories.filter((c) => c.type === 'income').map((c) => el('option', { value: c.id }, c.name))
+    )
   }
 
-  function card(wallet, balances) {
-    return el('article', { class: 'panel wallet-card' },
-      el('div', { class: 'w-name' }, wallet.name),
-      el('div', { class: 'w-type' }, 'Tabungan'),
-      el('div', { class: 'w-balance', 'data-amount': true }, formatRupiah(balances.get(wallet.id) ?? wallet.initial_balance)),
-      el('div', { class: 'row-actions' },
-        el('button', { class: 'btn-link', type: 'button', onclick: () => openForm(wallet) }, 'Edit'),
-        el('button', { class: 'btn-link', type: 'button', onclick: () => archive(wallet) }, 'Arsipkan')))
+  async function loadRefs() {
+    if (guest) {
+      categories = await listGuestCategories()
+    } else {
+      const { data, error } = await sb.from('categories')
+        .select('id, name, type')
+        .eq('family_id', familyId)
+        .eq('is_archived', false)
+        .order('name')
+      if (error) throw error
+      categories = data ?? []
+    }
+    fillCategories()
+  }
+
+  async function loadBalances() {
+    if (guest) {
+      const data = await buildGuestReportData()
+      const main = data.balances.find((b) => data.wallets.find((w) => w.id === b.wallet_id)?.scope === 'family_main')
+      const savings = data.balances.find((b) => data.wallets.find((w) => w.id === b.wallet_id)?.scope === 'family_savings')
+      mainBalance = Number(main?.balance ?? 0)
+      savingsBalance = Number(savings?.balance ?? 0)
+    } else {
+      const [mainW, savingsW] = await Promise.all([
+        sb.from('wallets').select('id').eq('family_id', familyId).eq('scope', 'family_main').eq('is_archived', false).maybeSingle(),
+        sb.from('wallets').select('id').eq('family_id', familyId).eq('scope', 'family_savings').eq('is_archived', false).maybeSingle()
+      ])
+      if (mainW.error || savingsW.error) throw mainW.error || savingsW.error
+      const [mainB, savingsB] = await Promise.all([
+        mainW.data ? sb.from('family_main_balances').select('balance').eq('wallet_id', mainW.data.id).maybeSingle() : Promise.resolve({ data: null, error: null }),
+        savingsW.data ? sb.from('family_savings_balances').select('balance').eq('wallet_id', savingsW.data.id).maybeSingle() : Promise.resolve({ data: null, error: null })
+      ])
+      if (mainB.error || savingsB.error) throw mainB.error || savingsB.error
+      mainBalance = Number(mainB.data?.balance ?? 0)
+      savingsBalance = Number(savingsB.data?.balance ?? 0)
+    }
+    $('savings-total').textContent = formatRupiah(savingsBalance)
+    $('main-balance-hint').textContent = `Saldo Dompet Utama: ${formatRupiah(mainBalance)}`
+    $('savings-count').textContent = '1'
+  }
+
+  function ledgerRow(entry) {
+    const amountClass = entry.kind === 'withdraw_internal' ? 'expense' : 'income'
+    const sign = entry.kind === 'withdraw_internal' ? '-' : '+'
+    const detail = entry.kind === 'deposit_external'
+      ? `Sumber: ${entry.categories?.name || 'Eksternal'}`
+      : (entry.kind === 'deposit_internal' ? 'Sumber: Dompet Utama Keluarga' : 'Tujuan: Dompet Utama Keluarga')
+    return el('div', { class: 'cat-row tx-row' },
+      el('div', { class: 'tx-main' },
+        el('div', { class: 'tx-title' }, kindLabel(entry.kind)),
+        el('div', { class: 'muted' }, `${entry.entry_date} · ${detail} · ${entry.profiles?.full_name || 'Anggota'}`),
+        entry.note ? el('div', { class: 'muted' }, entry.note) : null),
+      el('div', { class: `tx-amount ${amountClass}` }, `${sign}${formatRupiah(entry.amount)}`))
+  }
+
+  async function loadLedger() {
+    let rows = []
+    if (guest) {
+      rows = await listGuestSavingsLedger(30)
+    } else {
+      const { data, error } = await sb.from('savings_ledger')
+        .select('id, kind, amount, entry_date, note, created_by, category_id, categories(name), profiles(full_name, email)')
+        .eq('family_id', familyId)
+        .is('deleted_at', null)
+        .order('entry_date', { ascending: false })
+        .order('created_at', { ascending: false })
+        .limit(30)
+      if (error) throw error
+      rows = data ?? []
+    }
+    $('savings-list').replaceChildren(...rows.map(ledgerRow))
+    $('savings-empty').hidden = rows.length > 0
   }
 
   async function load() {
@@ -68,42 +132,10 @@ if (ctx) {
     $('savings-loading').hidden = false
     $('savings-list').replaceChildren()
     $('savings-empty').hidden = true
-    $('savings-total').textContent = 'Memuat...'
-    $('savings-count').textContent = 'Memuat...'
-
     try {
-      let wallets = []
-      let balances = []
-
-      if (guest) {
-        const ok = await guestAvailable()
-        if (!ok) throw new Error('IndexedDB tidak tersedia di perangkat ini.')
-        const data = await buildGuestReportData()
-        wallets = data.wallets.filter((w) => w.type === 'savings' && !w.is_archived)
-        balances = guestWalletBalances(data.wallets, data.transactions, data.transfers)
-      } else {
-        const [walletRes, balanceRes] = await Promise.all([
-          sb.from('wallets')
-            .select('id, name, type, initial_balance')
-            .eq('family_id', familyId)
-            .eq('type', 'savings')
-            .eq('is_archived', false)
-            .order('created_at'),
-          sb.from('wallet_balances').select('wallet_id, balance').eq('family_id', familyId)
-        ])
-        const err = walletRes.error || balanceRes.error
-        if (err) throw err
-        wallets = walletRes.data ?? []
-        balances = balanceRes.data ?? []
-      }
-
-      const summary = splitWalletBalances(wallets, balances)
-      const balanceMap = new Map(summary.savingsBalances.map((row) => [row.wallet_id, Number(row.balance)]))
-
-      $('savings-total').textContent = formatRupiah(summary.savingsTotal)
-      $('savings-count').textContent = String(wallets.length)
-      $('savings-list').replaceChildren(...wallets.map((wallet) => card(wallet, balanceMap)))
-      $('savings-empty').hidden = wallets.length > 0
+      await loadRefs()
+      await loadBalances()
+      await loadLedger()
       $('savings-loading').hidden = true
     } catch (e) {
       $('savings-total').textContent = '-'
@@ -113,31 +145,64 @@ if (ctx) {
     }
   }
 
-  $('btn-add').addEventListener('click', () => openForm())
+  function openForm() {
+    form.hidden = false
+    showFormError()
+    if (!$('savings-date').value) $('savings-date').value = new Date().toISOString().slice(0, 10)
+    fillCategories()
+    $('savings-amount').focus()
+  }
+
+  function closeForm() {
+    form.hidden = true
+    form.reset()
+    $('category-wrap').hidden = true
+    showFormError()
+  }
+
+  $('btn-add').addEventListener('click', openForm)
   $('btn-cancel').addEventListener('click', closeForm)
   $('btn-retry').addEventListener('click', load)
+  $('savings-source').addEventListener('change', fillCategories)
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault()
     showFormError()
+    const kind = $('savings-source').value
     const payload = {
-      name: $('savings-name').value.trim(),
-      initial_balance: Number($('savings-balance').value),
-      type: 'savings'
+      amount: Number($('savings-amount').value),
+      entry_date: $('savings-date').value,
+      note: $('savings-note').value.trim() || null,
+      category_id: $('savings-category').value || null
     }
+    if (!Number.isFinite(payload.amount) || payload.amount <= 0) return showFormError('Nominal harus lebih dari 0.')
+    if (kind === 'deposit_external' && !payload.category_id) return showFormError('Kategori sumber dana wajib dipilih.')
     try {
-      if (guest) await saveGuestWallet(payload, editingId)
-      else if (editingId) {
-        const { error } = await sb.from('wallets').update({ name: payload.name, initial_balance: payload.initial_balance }).eq('id', editingId)
-        if (error) throw error
+      if (guest) {
+        if (kind === 'deposit_internal') await guestDepositInternal(payload)
+        else if (kind === 'deposit_external') await guestDepositExternal(payload)
+        else await guestWithdrawInternal(payload)
       } else {
-        const { error } = await sb.from('wallets').insert({
-          family_id: familyId,
-          owner_id: user.id,
-          type: 'savings',
-          name: payload.name,
-          initial_balance: payload.initial_balance
-        })
+        const rpc = kind === 'deposit_internal' ? 'family_deposit_internal'
+          : kind === 'deposit_external' ? 'family_deposit_external'
+            : 'family_withdraw_internal'
+        const rpcPayload = kind === 'deposit_external'
+          ? {
+            p_family_id: familyId,
+            p_amount: payload.amount,
+            p_entry_date: payload.entry_date,
+            p_category_id: payload.category_id,
+            p_note: payload.note,
+            p_client_op_id: crypto.randomUUID()
+          }
+          : {
+            p_family_id: familyId,
+            p_amount: payload.amount,
+            p_entry_date: payload.entry_date,
+            p_note: payload.note,
+            p_client_op_id: crypto.randomUUID()
+          }
+        const { error } = await sb.rpc(rpc, rpcPayload)
         if (error) throw error
       }
       closeForm()

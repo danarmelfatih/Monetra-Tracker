@@ -43,7 +43,7 @@ test('halaman utama aplikasi tersaji dengan konten yang diharapkan', async () =>
     ['/', 'Kelola Keuangan Keluarga'],
     ['/', 'dashboard?guest=1'],
     ['/dashboard', 'Arus Keuangan'],
-    ['/dashboard', 'Total Saldo (Siap Pakai)'],
+    ['/dashboard', 'Saldo Dompet Utama Keluarga'],
     ['/dashboard', 'monetra-theme'],
     ['/dashboard', 'monetra-hide-amounts'],
     ['/dashboard', 'id="total" data-amount'],
@@ -54,7 +54,7 @@ test('halaman utama aplikasi tersaji dengan konten yang diharapkan', async () =>
     ['/reports', 'id="report-type"'],
     ['/transactions', 'id="tx-form"'],
     ['/transactions', 'tx-list-panel'],
-    ['/wallets', 'id="wallet-form"'],
+    ['/wallets', 'Dompet Utama Keluarga'],
     ['/wallets', 'monetra-hide-amounts'],
     ['/wallets', 'id="btn-hide-amounts"'],
     ['/savings', 'id="savings-list"'],
@@ -118,7 +118,7 @@ test('aset kritis dan manifest PWA tersaji', async () => {
     ['/js/lib/guest-db.js', 'openGuestDb'],
     ['/js/lib/guest-seed.js', 'defaultGuestCategories'],
     ['/js/lib/guest-store.js', 'saveGuestTransaction'],
-    ['/service-worker.js', 'monetra-cache-v21'],
+    ['/service-worker.js', 'monetra-cache-v22'],
     ['/service-worker.js', '/js/lib/guest-store.js'],
     ['/manifest.json', 'Monetra Tracker']
   ]

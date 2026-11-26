@@ -45,18 +45,22 @@ if (ctx) {
       members = [guestMember()]
       myRole = 'owner'
     } else {
-      const [c, w, m] = await Promise.all([
+      let [c, w, m] = await Promise.all([
         sb.from('categories').select('id, name, type').eq('family_id', familyId).eq('is_archived', false).order('name'),
         sb.from('wallets').select('id, name, type, scope').eq('family_id', familyId).eq('is_archived', false).order('name'),
         sb.from('family_members')
           .select('user_id, role, profiles(full_name, email)')
           .eq('family_id', familyId).eq('status', 'active')
       ])
+      if (w.error && isMissingFamilyFinanceSchema(w.error)) {
+        legacySchema = true
+        w = await sb.from('wallets').select('id, name, type').eq('family_id', familyId).eq('is_archived', false).order('name')
+      }
       const err = c.error || w.error || m.error
       if (err) throw err
-      categories = c.data
-      wallets = w.data
-      members = m.data
+      categories = c.data ?? []
+      wallets = w.data ?? []
+      members = m.data ?? []
       myRole = members.find((x) => x.user_id === user.id)?.role ?? 'member'
     }
 
@@ -80,12 +84,13 @@ if (ctx) {
   }
 
   function fillWalletOptions() {
+    if (legacySchema) {
+      $('tx-wallet').replaceChildren(...wallets.map((w) => el('option', { value: w.id }, w.name)))
+      return
+    }
     const main = familyMainWallet()
     const list = main ? [main, ...wallets.filter((w) => w.id !== main.id && w.scope !== 'family_savings')] : wallets.filter((w) => w.scope !== 'family_savings')
-    $('tx-wallet').replaceChildren(...list.map((w) => {
-      const label = w.scope === 'family_main' ? `${w.name}` : w.name
-      return el('option', { value: w.id }, label)
-    }))
+    $('tx-wallet').replaceChildren(...list.map((w) => el('option', { value: w.id }, w.name)))
   }
 
   async function load() {
@@ -123,6 +128,8 @@ if (ctx) {
       let res = await query
       if (res.error && !legacySchema && isMissingFamilyFinanceSchema(res.error)) {
         legacySchema = true
+        wallets = wallets.map(({ scope: _scope, ...w }) => w)
+        fillWalletOptions()
         let q2 = sb.from('transactions')
           .select(selectLegacy)
           .eq('family_id', familyId)
@@ -130,8 +137,8 @@ if (ctx) {
           .order('transaction_date', { ascending: false })
           .order('created_at', { ascending: false })
           .limit(100)
-        const search = $('filter-search').value.trim().replace(/[,%()]/g, ' ')
-        if (search) q2 = q2.or(`title.ilike.%${search}%,note.ilike.%${search}%`)
+        const search2 = $('filter-search').value.trim().replace(/[,%()]/g, ' ')
+        if (search2) q2 = q2.or(`title.ilike.%${search2}%,note.ilike.%${search2}%`)
         if ($('filter-type').value) q2 = q2.eq('type', $('filter-type').value)
         if ($('filter-from').value) q2 = q2.gte('transaction_date', $('filter-from').value)
         if ($('filter-to').value) q2 = q2.lte('transaction_date', $('filter-to').value)
@@ -141,9 +148,11 @@ if (ctx) {
         res = await q2
       }
       if (res.error) return showError(res.error.message)
-      data = res.data
+      data = res.data ?? []
     }
     showError()
+    const note = $('filter-note')
+    if (note) note.textContent = (!guest && legacySchema) ? 'Mode kompatibilitas: skema family finance belum aktif di database. Transaksi memakai data legacy.' : ''
     $('tx-list').replaceChildren(...data.map(row))
     $('empty').hidden = data.length > 0
   }
